@@ -53,7 +53,7 @@ Regra de ouro (anti "split-brain"/corrupção): **apenas um host roda o Minecraf
 1. **Instale** o Docker Desktop e o Tailscale, e faça login no Tailscale.
 2. **Clone** este repositório na pasta que quiser (ex.: `D:\Server-Minecraft`):
    ```bash
-   git clone https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git Server-Minecraft
+   git clone https://github.com/yagoriccomi/docker-minecraft-server.git
    ```
    > Não usa Git? Baixe o ZIP pelo GitHub e extraia.
 3. **Aceite o EULA da Minecraft:** já está definido em `compose.yaml` (`EULA: "TRUE"`).
