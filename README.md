@@ -1,5 +1,12 @@
 # 🎮 Servidor de Minecraft Descentralizado (P2P)
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](compose.yaml)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-62B47A?logo=minecraft&logoColor=white)](#-o-que-alterar--e-para-quê)
+[![Syncthing](https://img.shields.io/badge/Sync-Syncthing-0891D1?logo=syncthing&logoColor=white)](https://syncthing.net/)
+[![Tailscale](https://img.shields.io/badge/VPN-Tailscale-242424?logo=tailscale&logoColor=white)](https://tailscale.com/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#)
+
 Servidor de Minecraft **Java** rodando em **Docker**, com o mapa sincronizado entre
 amigos via **Syncthing** sobre uma rede **Tailscale** (VPN mesh). Sem hospedagem paga,
 sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junto.
