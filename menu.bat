@@ -38,6 +38,8 @@ echo   [8] Backup do mapa (.zip com data/hora)
 echo   [9] Abrir painel do Syncthing no navegador
 echo.
 echo   --- SETUP ---
+echo   [X] Instalar/verificar dependencias (Docker, Git, Tailscale)
+echo   [U] Sincronizar projeto com o GitHub (git pull)
 echo   [I] Importar mundo + dados de jogadores (SUBSTITUI o mundo atual)
 echo.
 echo   [0] Sair
@@ -55,6 +57,8 @@ if "%opcao%"=="7" goto parar_tudo
 if "%opcao%"=="8" goto backup
 if "%opcao%"=="9" goto syncthing
 if /i "%opcao%"=="D" goto diagnostico
+if /i "%opcao%"=="X" goto instalar
+if /i "%opcao%"=="U" goto atualizar
 if /i "%opcao%"=="I" goto importar
 if "%opcao%"=="0" goto sair
 echo.
@@ -193,6 +197,47 @@ echo === ABRINDO PAINEL DO SYNCTHING ===
 echo.
 start "" "http://localhost:8384"
 echo Painel aberto no navegador padrao (http://localhost:8384).
+echo.
+pause
+goto menu
+
+:instalar
+cls
+echo === INSTALAR / VERIFICAR DEPENDENCIAS ===
+echo.
+echo Isto vai baixar/instalar Docker Desktop, Git e Tailscale (via winget)
+echo e configurar o salvamento automatico do mundo (a cada 30 min).
+echo O Windows pode pedir permissao de administrador durante a instalacao.
+echo.
+pause
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\install-deps.ps1"
+call :log "Instalacao/verificacao de dependencias executada"
+echo.
+pause
+goto menu
+
+:atualizar
+cls
+echo === SINCRONIZAR PROJETO COM O GITHUB (git pull) ===
+echo.
+where git >nul 2>&1
+if errorlevel 1 (
+    echo [ERRO] Git nao encontrado. Use a opcao [X] para instalar as dependencias.
+    call :log "ERRO: git ausente na atualizacao"
+    echo.
+    pause
+    goto menu
+)
+git -C "%ROOT%" pull --ff-only
+if errorlevel 1 (
+    echo.
+    echo [ERRO] Falha ao atualizar. Veja a mensagem acima. Log: "%LOGFILE%"
+    call :log "ERRO: git pull falhou"
+) else (
+    echo.
+    echo Projeto atualizado com a versao mais recente do GitHub!
+    call :log "OK: git pull"
+)
 echo.
 pause
 goto menu

@@ -49,7 +49,10 @@ Regra de ouro (anti "split-brain"/corrupção): **apenas um host roda o Minecraf
 |-----------|----------|------|
 | **Docker Desktop** | Rodar os contêineres | https://www.docker.com/products/docker-desktop/ |
 | **Tailscale** | Rede P2P entre os PCs | https://tailscale.com/ |
-| **Git** (opcional) | Clonar este repositório | https://git-scm.com/ |
+| **Git** | Clonar o repo e baixar atualizações (opção `U`) | https://git-scm.com/ |
+
+> 💡 **Atalho:** já tem o projeto na mão? A opção **`X`** do menu baixa e instala **Docker,
+> Git e Tailscale** automaticamente (via `winget`) e ainda configura o salvamento automático.
 
 > Windows: o Docker Desktop usa o backend **WSL 2** (o instalador cuida disso).
 
@@ -90,6 +93,8 @@ Pronto! O servidor sobe em `localhost:25565` e o painel do Syncthing em `http://
 | **7 · Parar Tudo** | Encerra Minecraft + Syncthing. |
 | **8 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
 | **9 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
+| **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e configura o salvamento automático de 30 min. |
+| **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. |
 | **I · Importar mundo** | Importa um mundo externo (**substitui** o atual, com backup automático) e migra os dados dos jogadores de UUID online→offline. |
 | **0 · Sair** | Fecha o painel. |
 
@@ -122,6 +127,16 @@ Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecr
 - **Host ativo termina de jogar:** opção **6 (Parar Minecraft)** e aguarde o Syncthing
   ficar `Up to Date` (opção **2** mostra o %) **antes de desligar**.
 - **O outro só então** dá **[1] Iniciar** no PC dele. Nunca dois rodando o Minecraft ao mesmo tempo.
+
+### 🛟 Salvamento automático e recuperação de energia
+- **Autosave a cada 30 min** — a opção **`X`** cria uma tarefa agendada do Windows
+  (`MinecraftP2P-AutoSave`) que, enquanto o servidor está no ar, executa `save-all flush` de 30 em
+  30 minutos. Assim o Syncthing sempre tem uma cópia recente em disco e, num desligamento abrupto
+  (queda de energia), você perde **no máximo ~30 min** de progresso.
+- **Auto-restart após queda de energia** — o serviço `mc` usa `restart: unless-stopped`. Se o PC
+  reiniciar (pico de energia) **com o servidor rodando**, o Docker sobe o Minecraft sozinho no boot.
+  Se você parar de propósito pela opção **6** (handoff), ele **fica parado** — sem risco de split-brain.
+  (Requer o Docker Desktop iniciando com o Windows, o que já é o padrão configurado.)
 
 ---
 
@@ -180,6 +195,8 @@ Server-Minecraft/
 ├── scripts/
 │   ├── status.ps1       # Relatório de status (usado pela opção 2)
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção D)
+│   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + autosave (opção X)
+│   ├── autosave.ps1     # save-all flush periódico (tarefa agendada de 30 min)
 │   ├── import-world.ps1 # Importa um mundo externo (opção I)
 │   ├── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │   └── uuid_*.py        # Utilitários de migração de UUID (uso pontual, referência)
