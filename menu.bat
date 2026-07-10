@@ -36,6 +36,9 @@ echo   --- EXTRAS ---
 echo   [8] Backup do mapa (.zip com data/hora)
 echo   [9] Abrir painel do Syncthing no navegador
 echo.
+echo   --- SETUP ---
+echo   [I] Importar mundo + dados de jogadores (SUBSTITUI o mundo atual)
+echo.
 echo   [0] Sair
 echo.
 echo ===================================================
@@ -50,6 +53,7 @@ if "%opcao%"=="6" goto parar_mc
 if "%opcao%"=="7" goto parar_tudo
 if "%opcao%"=="8" goto backup
 if "%opcao%"=="9" goto syncthing
+if /i "%opcao%"=="I" goto importar
 if "%opcao%"=="0" goto sair
 echo.
 echo Opcao invalida! Tente novamente.
@@ -187,6 +191,27 @@ echo === ABRINDO PAINEL DO SYNCTHING ===
 echo.
 start "" "http://localhost:8384"
 echo Painel aberto no navegador padrao (http://localhost:8384).
+echo.
+pause
+goto menu
+
+:importar
+cls
+echo === IMPORTAR MUNDO + DADOS DE JOGADORES ===
+echo.
+echo Esta opcao SUBSTITUI o mundo atual pelo mundo de uma pasta externa.
+echo Um backup .zip do mundo atual e criado ANTES de qualquer alteracao.
+echo O Minecraft sera parado para liberar os arquivos.
+echo.
+docker compose -f "%COMPOSE%" stop mc >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\import-world.ps1"
+if errorlevel 1 (
+    echo.
+    echo [AVISO] Importacao nao concluida (cancelada ou com erro). Log: "%LOGFILE%"
+    call :log "AVISO: import-world nao concluido"
+) else (
+    call :log "OK: importacao de mundo/dados concluida"
+)
 echo.
 pause
 goto menu

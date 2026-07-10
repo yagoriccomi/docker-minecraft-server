@@ -89,7 +89,26 @@ Pronto! O servidor sobe em `localhost:25565` e o painel do Syncthing em `http://
 | **7 · Parar Tudo** | Encerra Minecraft + Syncthing. |
 | **8 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
 | **9 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
+| **I · Importar mundo** | Importa um mundo externo (**substitui** o atual, com backup automático) e migra os dados dos jogadores de UUID online→offline. |
 | **0 · Sair** | Fecha o painel. |
+
+### 📥 Importar um mundo existente (opção `I`)
+Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecraft`) para o servidor:
+
+1. No painel, escolha **`I`**. O Minecraft é parado automaticamente.
+2. Cole o **caminho da pasta do mundo** (a que contém o `level.dat`), ex.:
+   `C:\Users\voce\AppData\Roaming\.minecraft\saves\MeuMundo`.
+3. Confirme. O script:
+   - 💾 faz um **backup `.zip`** do mundo atual em `backups/` (`world_antes_import_*.zip`);
+   - 📦 copia o mundo novo para `data/world` (com verificação de integridade);
+   - 👤 pergunta se quer **migrar os jogadores de UUID online→offline** — necessário quando
+     `ONLINE_MODE=FALSE`, senão os jogadores entram com **inventário vazio**.
+4. Para a migração de jogadores, o script busca o `usercache.json` (fonte dos apelidos) na raiz
+   da instalação de origem; se não achar, ele pede o caminho.
+
+> **Por que a migração de UUID?** Com o servidor em modo offline, o UUID de cada jogador passa a ser
+> derivado do apelido (`MD5("OfflinePlayer:"+nick)`). Os arquivos do mundo antigo estão nos UUIDs
+> antigos (online), então precisam ser renomeados para os novos (offline) — é isso que a opção faz.
 
 ### 🔗 Sincronizar com um amigo (Syncthing)
 1. Abra o painel do Syncthing (opção **9**).
@@ -148,7 +167,9 @@ Server-Minecraft/
 ├── .gitignore           # Ignora dados, segredos, backups e logs
 ├── scripts/
 │   ├── status.ps1       # Relatório de status (usado pela opção 2)
-│   └── uuid_*.py        # Utilitários de migração de UUID (uso pontual)
+│   ├── import-world.ps1 # Importa um mundo externo (opção I)
+│   ├── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
+│   └── uuid_*.py        # Utilitários de migração de UUID (uso pontual, referência)
 ├── docs/
 │   └── RELATORIO-HARDWARE.md
 │
