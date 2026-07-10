@@ -137,7 +137,7 @@ Server-Minecraft/
 ├── compose.yaml         # Orquestração Docker (Minecraft + Syncthing)
 ├── menu.bat             # Painel de controle (portável, com log de erros)
 ├── README.md            # Este arquivo
-├── LICENSE              # Licença MIT
+├── LICENSE              # Licença GNU GPL v3.0
 ├── .gitignore           # Ignora dados, segredos, backups e logs
 ├── scripts/
 │   ├── status.ps1       # Relatório de status (usado pela opção 2)
@@ -156,7 +156,10 @@ Server-Minecraft/
 
 ## 📜 Licença
 
-Distribuído sob a licença **MIT** — veja [LICENSE](LICENSE).
+Distribuído sob a **GNU General Public License v3.0 (GPL-3.0)** — veja [LICENSE](LICENSE).
+É uma licença *copyleft*: você pode usar, estudar, modificar e redistribuir, mas
+trabalhos derivados devem permanecer abertos sob a mesma licença.
+
 Minecraft® é marca da Mojang/Microsoft; este projeto é só infraestrutura e não
 distribui o jogo. O servidor é baixado pela imagem `itzg/minecraft-server`,
 sujeito ao [EULA da Minecraft](https://www.minecraft.net/eula).
