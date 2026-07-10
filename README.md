@@ -84,7 +84,7 @@ Pronto! O servidor sobe em `localhost:25565` e o painel do Syncthing em `http://
 | **2 · Status** | Mostra contêineres, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
 | **3 · Logs** | Últimas 80 linhas do log do Minecraft. |
 | **4 · Console (RCON)** | Abre um console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
-| **D · Detector de erros** | Diagnóstico completo: daemon, estado/saúde/reinícios dos contêineres, erros nos logs e no Syncthing. |
+| **D · Detector de erros** | Diagnóstico completo: daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
 | **5 · Reiniciar** | Reinicia só o Minecraft. |
 | **6 · Parar Minecraft** | Para **só** o Minecraft e **mantém o Syncthing** enviando o save. |
 | **7 · Parar Tudo** | Encerra Minecraft + Syncthing. |
@@ -151,6 +151,11 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
   parado, contêiner `exited`/`unhealthy`/em *crash loop*, códigos de saída (ex.: `137` = falta de
   memória), erros recentes nos logs do Minecraft e do Syncthing, e histórico de erros do menu.
   Termina com um resumo de quantos pontos de atenção foram encontrados.
+- **Guardião do revezamento (Tailscale)** — o detector varre os hosts da sua rede Tailscale e, se
+  encontrar o Minecraft **já ativo em outro host** (porta 25565), avisa **em qual host e com qual IP**
+  conectar, alertando que subir o seu próprio servidor causaria *split-brain* (perda do progresso de
+  um dos mapas). É só um aviso — você decide. E quando outro host está ativo, o seu Minecraft parado
+  passa a ser reconhecido como **"STANDBY"** (não como erro).
 - **Healthcheck no Docker** — tanto o Minecraft (imagem `itzg`) quanto o Syncthing têm *healthcheck*;
   o Docker marca o contêiner como `unhealthy` automaticamente quando ele para de responder.
 - Toda ação do menu registra **sucesso ou falha** com data/hora em **`logs/menu.log`**.

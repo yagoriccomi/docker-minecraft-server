@@ -1,4 +1,4 @@
-# Detector de erros do ambiente (Docker + Minecraft + Syncthing).
+# Detector de erros do ambiente (Docker + Minecraft + Syncthing + Tailscale).
 # Portavel. Chamado pela opcao [D] do menu.bat.
 $ErrorActionPreference = 'SilentlyContinue'
 $root    = Split-Path $PSScriptRoot -Parent
@@ -9,6 +9,16 @@ $script:problemas = 0
 function Falha ($m) { $script:problemas++; Write-Host "  [ERRO]   $m" -ForegroundColor Red }
 function Alerta($m) { $script:problemas++; Write-Host "  [ALERTA] $m" -ForegroundColor Yellow }
 function Okk   ($m) {                        Write-Host "  [OK]     $m" -ForegroundColor Green }
+function Aviso ($m) {                        Write-Host "  [AVISO]  $m" -ForegroundColor Magenta }  # informativo, nao conta como problema
+
+function Test-Tcp ($ip, $port, $timeoutMs) {
+    $c = New-Object System.Net.Sockets.TcpClient
+    try {
+        $iar = $c.BeginConnect($ip, $port, $null, $null)
+        if ($iar.AsyncWaitHandle.WaitOne($timeoutMs, $false) -and $c.Connected) { $c.EndConnect($iar); return $true }
+        return $false
+    } catch { return $false } finally { $c.Close() }
+}
 
 Write-Host '============================================' -ForegroundColor Cyan
 Write-Host '        DETECTOR DE ERROS DO AMBIENTE'        -ForegroundColor Cyan
@@ -24,6 +34,31 @@ if ($LASTEXITCODE -ne 0) {
     return
 }
 Okk 'daemon respondendo'
+
+# -------- Pre-varredura Tailscale (usada em [2] e [6]) --------
+# Descobre se o Minecraft (porta 25565) esta ativo em algum host da rede Tailscale.
+$tsExe = @("$env:ProgramFiles\Tailscale\tailscale.exe", "${env:ProgramFiles(x86)}\Tailscale\tailscale.exe") |
+         Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $tsExe) { $tsExe = (Get-Command tailscale -ErrorAction SilentlyContinue).Source }
+$tsStatus = $null
+$tsOutros = @()          # hosts REMOTOS com 25565 aberto
+$tsSelfUp = $false       # este PC servindo 25565
+if ($tsExe) {
+    $tsStatus = & $tsExe status --json 2>$null | ConvertFrom-Json
+    if ($tsStatus) {
+        if ($tsStatus.Peer) {
+            foreach ($p in $tsStatus.Peer.PSObject.Properties.Value) {
+                if (-not $p.Online) { continue }
+                $ip = @($p.TailscaleIPs | Where-Object { $_ -notmatch ':' })[0]
+                if ($ip -and (Test-Tcp $ip 25565 900)) {
+                    $tsOutros += [pscustomobject]@{ Nome = $p.HostName; IP = $ip }
+                }
+            }
+        }
+        $sip = @($tsStatus.Self.TailscaleIPs | Where-Object { $_ -notmatch ':' })[0]
+        if ($sip -and (Test-Tcp $sip 25565 900)) { $tsSelfUp = $true }
+    }
+}
 
 # -------- 2) Estado dos containers --------
 Write-Host "`n[2] Containers"
@@ -48,7 +83,11 @@ foreach ($name in @('minecraft', 'syncthing')) {
         }
         'restarting' { Falha "$name : REINICIANDO EM LOOP (crash loop) - veja os logs (opcao 3)" }
         'exited' {
-            if ($exit -eq 0) { Okk "$name : parado (exit 0) - normal se voce encerrou pela opcao 6/7" }
+            if ($name -eq 'minecraft' -and $tsOutros.Count -gt 0) {
+                # Minecraft parado aqui, mas ATIVO em outro host => este PC esta em STANDBY (correto pelo revezamento)
+                Okk "$name : parado - este PC em STANDBY (host ativo: $($tsOutros[0].Nome) @ $($tsOutros[0].IP)). Normal no revezamento."
+            }
+            elseif ($exit -eq 0) { Okk "$name : parado (exit 0) - normal se voce encerrou pela opcao 6/7" }
             elseif ($exit -eq 137) { Falha "$name : saiu com EXIT 137 (SIGKILL / falta de memoria). Considere reduzir MEMORY ou fechar apps." }
             else { Falha "$name : saiu com ERRO (exit $exit). Verifique os logs (opcao 3)." }
         }
@@ -113,6 +152,27 @@ if (Test-Path $logfile) {
     } else { Okk 'nenhum ERRO registrado no menu.log' }
 } else {
     Okk 'menu.log ainda nao existe (nenhuma acao registrada)'
+}
+
+# -------- 6) Tailscale: o Minecraft ja esta ativo em outro host? --------
+Write-Host "`n[6] Tailscale (regra de host unico)"
+if (-not $tsExe) {
+    Aviso 'tailscale.exe nao encontrado - verificacao de host ativo pulada.'
+} elseif (-not $tsStatus) {
+    Aviso 'Tailscale nao respondeu (desconectado?) - verificacao pulada.'
+} elseif ($tsOutros.Count -gt 0) {
+    foreach ($h in $tsOutros) {
+        Aviso "SERVIDOR MINECRAFT ATIVO em: $($h.Nome)  ->  conecte em  $($h.IP):25565"
+    }
+    Write-Host '      ------------------------------------------------------------------' -ForegroundColor Magenta
+    Write-Host '      Esse e o host ATIVO do revezamento agora. Para jogar, entre no IP acima.' -ForegroundColor Magenta
+    Write-Host '      Se subir o SEU servidor (opcao 1) com esse no ar, havera DOIS mapas' -ForegroundColor Magenta
+    Write-Host '      divergentes e o progresso de UM deles sera PERDIDO (split-brain).' -ForegroundColor Magenta
+    Write-Host '      E apenas um aviso: voce pode subir o seu mesmo assim, por sua conta e risco.' -ForegroundColor Magenta
+} elseif ($tsSelfUp) {
+    Okk 'o Minecraft esta ativo NESTE PC (porta 25565 aberta) - voce e o host ativo'
+} else {
+    Okk 'nenhum host do Tailscale rodando o Minecraft - livre para iniciar o seu (opcao 1)'
 }
 
 # -------- Resumo --------
