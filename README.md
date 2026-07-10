@@ -84,6 +84,7 @@ Pronto! O servidor sobe em `localhost:25565` e o painel do Syncthing em `http://
 | **2 · Status** | Mostra contêineres, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
 | **3 · Logs** | Últimas 80 linhas do log do Minecraft. |
 | **4 · Console (RCON)** | Abre um console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
+| **D · Detector de erros** | Diagnóstico completo: daemon, estado/saúde/reinícios dos contêineres, erros nos logs e no Syncthing. |
 | **5 · Reiniciar** | Reinicia só o Minecraft. |
 | **6 · Parar Minecraft** | Para **só** o Minecraft e **mantém o Syncthing** enviando o save. |
 | **7 · Parar Tudo** | Encerra Minecraft + Syncthing. |
@@ -146,6 +147,12 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 
 ## 🧾 Captura de erros / diagnóstico
 
+- **Opção `D` (Detector de erros)** — diagnóstico completo que aponta problemas: daemon do Docker
+  parado, contêiner `exited`/`unhealthy`/em *crash loop*, códigos de saída (ex.: `137` = falta de
+  memória), erros recentes nos logs do Minecraft e do Syncthing, e histórico de erros do menu.
+  Termina com um resumo de quantos pontos de atenção foram encontrados.
+- **Healthcheck no Docker** — tanto o Minecraft (imagem `itzg`) quanto o Syncthing têm *healthcheck*;
+  o Docker marca o contêiner como `unhealthy` automaticamente quando ele para de responder.
 - Toda ação do menu registra **sucesso ou falha** com data/hora em **`logs/menu.log`**.
 - Antes de iniciar, o menu **verifica se o Docker está rodando** e avisa se não estiver.
 - A opção **2 (Status)** é o diagnóstico rápido: estado dos contêineres, saúde e % de sync.
@@ -167,6 +174,7 @@ Server-Minecraft/
 ├── .gitignore           # Ignora dados, segredos, backups e logs
 ├── scripts/
 │   ├── status.ps1       # Relatório de status (usado pela opção 2)
+│   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção D)
 │   ├── import-world.ps1 # Importa um mundo externo (opção I)
 │   ├── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │   └── uuid_*.py        # Utilitários de migração de UUID (uso pontual, referência)

@@ -44,4 +44,10 @@ services:
       - "22000:22000/tcp"      # Transferência de dados (sync)
       - "22000:22000/udp"      # Transferência de dados (QUIC)
       - "21027:21027/udp"      # Descoberta local
+    healthcheck:               # Docker marca 'unhealthy' se o Syncthing parar de responder
+      test: ["CMD", "curl", "-fsS", "http://localhost:8384/rest/noauth/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped    # Pode ficar ligado em standby (apenas Syncthing)

@@ -26,6 +26,7 @@ echo.
 echo   --- MONITORAR ---
 echo   [3] Ver ultimos logs do Minecraft
 echo   [4] Console / Comandos do servidor (RCON)
+echo   [D] Detector de erros (diagnostico completo)
 echo.
 echo   --- CONTROLE ---
 echo   [5] Reiniciar apenas o Minecraft
@@ -53,6 +54,7 @@ if "%opcao%"=="6" goto parar_mc
 if "%opcao%"=="7" goto parar_tudo
 if "%opcao%"=="8" goto backup
 if "%opcao%"=="9" goto syncthing
+if /i "%opcao%"=="D" goto diagnostico
 if /i "%opcao%"=="I" goto importar
 if "%opcao%"=="0" goto sair
 echo.
@@ -191,6 +193,14 @@ echo === ABRINDO PAINEL DO SYNCTHING ===
 echo.
 start "" "http://localhost:8384"
 echo Painel aberto no navegador padrao (http://localhost:8384).
+echo.
+pause
+goto menu
+
+:diagnostico
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\detect-errors.ps1"
+call :log "Diagnostico (detector de erros) executado"
 echo.
 pause
 goto menu
