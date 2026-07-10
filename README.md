@@ -198,10 +198,7 @@ Server-Minecraft/
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + autosave (opção X)
 │   ├── autosave.ps1     # save-all flush periódico (tarefa agendada de 30 min)
 │   ├── import-world.ps1 # Importa um mundo externo (opção I)
-│   ├── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
-│   └── uuid_*.py        # Utilitários de migração de UUID (uso pontual, referência)
-├── docs/
-│   └── RELATORIO-HARDWARE.md
+│   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │
 │  --- gerados localmente, NÃO versionados (.gitignore) ---
 ├── data/                # Mundo + config do servidor (o mapa NÃO vai pro GitHub)

@@ -27,3 +27,7 @@ Desktop.ini
 *.swp
 .vscode/
 .idea/
+
+# --- Arquivos locais/pessoais (nao publicados no repo generico) ---
+/CLAUDE.md
+/docs/RELATORIO-HARDWARE.md
