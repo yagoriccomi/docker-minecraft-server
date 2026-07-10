@@ -16,6 +16,24 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 
 ---
 
+## 📑 Índice
+
+- [✨ Recursos](#-recursos)
+- [🧩 Como funciona](#-como-funciona)
+- [✅ Pré-requisitos](#-pré-requisitos)
+- [🚀 Instalação (em qualquer PC)](#-instalação-em-qualquer-pc)
+- [🕹️ Como usar — o painel menu.bat](#-como-usar--o-painel-menubat)
+  - [📥 Importar um mundo existente](#-importar-um-mundo-existente-opção-i)
+  - [🔗 Sincronizar com um amigo](#-sincronizar-com-um-amigo-syncthing)
+  - [🔄 Ciclo de revezamento](#-ciclo-de-revezamento-importante)
+  - [🛟 Salvamento automático e recuperação](#-salvamento-automático-e-recuperação-de-energia)
+- [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
+- [🧾 Captura de erros / diagnóstico](#-captura-de-erros--diagnóstico)
+- [📂 Estrutura do projeto](#-estrutura-do-projeto)
+- [📜 Licença](#-licença)
+
+---
+
 ## ✨ Recursos
 
 - 🐳 **Docker Compose** — sobe Minecraft + Syncthing com um comando.
