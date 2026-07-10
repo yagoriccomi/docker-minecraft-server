@@ -1,0 +1,47 @@
+# 📌 Servidor de Minecraft Descentralizado (Docker + Syncthing)
+# Configuração derivada estritamente das regras do CLAUDE.md:
+#   - Limite de memória da JVM: 4G (MEMORY: "4G")
+#   - Modo offline: ONLINE_MODE: "FALSE"
+#   - Apenas a pasta ./data é exposta ao Syncthing
+#   - ./syncthing_config é estritamente local (NÃO sincronizar)
+#
+# Decisão do Gemini: manter TYPE VANILLA + VERSION LATEST por ora.
+#    Eventual incompatibilidade do mapa (.thanos) será diagnosticada no Passo 5 (logs).
+
+services:
+  mc:
+    image: itzg/minecraft-server:latest
+    container_name: minecraft
+    tty: true
+    stdin_open: true
+    ports:
+      - "25565:25565"          # Porta padrão do Minecraft Java
+    environment:
+      EULA: "TRUE"             # Necessário para iniciar o servidor
+      TYPE: "VANILLA"
+      VERSION: "1.21.11"
+      MEMORY: "4G"             # Limite mandatório do CLAUDE.md (host 16 GB)
+      ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
+      USE_AIKAR_FLAGS: "TRUE"  # Flags de GC otimizadas para o heap de 4 GB
+      TZ: "America/Sao_Paulo"
+    volumes:
+      - ./data:/data           # Volume de dados do servidor (contém o world)
+    restart: "no"              # Single-host: subir/derrubar manualmente (anti split-brain)
+
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: minecraft-host1
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "America/Sao_Paulo"
+    volumes:
+      - ./syncthing_config:/config   # Config/chaves locais (NÃO sincronizar)
+      - ./data:/data                 # ÚNICA pasta exposta ao Syncthing
+    ports:
+      - "8384:8384"            # Painel web (http://localhost:8384)
+      - "22000:22000/tcp"      # Transferência de dados (sync)
+      - "22000:22000/udp"      # Transferência de dados (QUIC)
+      - "21027:21027/udp"      # Descoberta local
+    restart: unless-stopped    # Pode ficar ligado em standby (apenas Syncthing)

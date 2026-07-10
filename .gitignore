@@ -1,0 +1,29 @@
+# ===================================================================
+#  .gitignore - Servidor de Minecraft P2P (Docker + Syncthing)
+# ===================================================================
+
+# --- DADOS DO SERVIDOR (pesados e pessoais - NUNCA versionar) ---
+# Contem o mundo (world/), server.properties gerado, caches, logs do MC.
+# O itzg/minecraft-server recria essa pasta automaticamente no 1o boot.
+/data/
+
+# --- SEGREDOS DO SYNCTHING (chaves privadas + API key) ---
+# Cada PC gera as suas proprias chaves no 1o boot. NUNCA versionar.
+/syncthing_config/
+
+# --- BACKUPS E ARQUIVOS COMPACTADOS ---
+/backups/
+_uuid_backup_*/
+*.zip
+
+# --- LOGS (gerados pelo menu.bat e utilitarios) ---
+/logs/
+*.log
+
+# --- Sistema Operacional / Editores ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
