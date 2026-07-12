@@ -215,6 +215,7 @@ Server-Minecraft/
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção D)
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + autosave (opção X)
 │   ├── autosave.ps1     # save-all flush periódico (tarefa agendada de 30 min)
+│   ├── run-hidden.vbs   # lançador silencioso do autosave (sem janela de console)
 │   ├── import-world.ps1 # Importa um mundo externo (opção I)
 │   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │

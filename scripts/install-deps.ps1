@@ -30,13 +30,13 @@ foreach ($p in $pacotes) {
 Write-Host ''
 Write-Host '=== Configurando salvamento automatico do mundo (a cada 30 min) ===' -ForegroundColor Cyan
 try {
-    $auto    = Join-Path $PSScriptRoot 'autosave.ps1'
-    $arg     = ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $auto)
-    $action  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arg
+    # Usa o lancador run-hidden.vbs (wscript) para rodar SEM piscar janela de console.
+    $vbs     = Join-Path $PSScriptRoot 'run-hidden.vbs'
+    $action  = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('"{0}"' -f $vbs)
     $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
                    -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Days 3650)
     Register-ScheduledTask -TaskName 'MinecraftP2P-AutoSave' -Action $action -Trigger $trigger -Force `
-        -Description 'Salva o mundo do Minecraft (save-all flush) a cada 30 min se o servidor estiver rodando.' | Out-Null
+        -Description 'Salva o mundo do Minecraft (save-all flush) a cada 30 min, de forma silenciosa (sem janela).' | Out-Null
     Write-Host '[OK] Tarefa "MinecraftP2P-AutoSave" registrada (roda a cada 30 min).' -ForegroundColor Green
 } catch {
     Write-Host ("[AVISO] Nao foi possivel registrar a tarefa de autosave: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
