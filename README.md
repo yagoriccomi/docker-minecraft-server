@@ -22,8 +22,10 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 - [🧩 Como funciona](#-como-funciona)
 - [✅ Pré-requisitos](#-pré-requisitos)
 - [🚀 Instalação (em qualquer PC)](#-instalação-em-qualquer-pc)
+  - [🥇 Fluxo A — Primeiro PC](#-fluxo-a--primeiro-pc)
+  - [🤝 Fluxo B — PC adicional](#-fluxo-b--pc-adicional)
 - [🕹️ Como usar — o painel menu.bat](#-como-usar--o-painel-menubat)
-  - [📥 Importar um mundo existente](#-importar-um-mundo-existente-opção-i)
+  - [📥 Importar um mundo existente](#-importar-um-mundo-existente)
   - [🔗 Sincronizar com um amigo](#-sincronizar-com-um-amigo-syncthing)
   - [🔄 Ciclo de revezamento](#-ciclo-de-revezamento-importante)
   - [🛟 Salvamento automático e recuperação](#-salvamento-automático-e-recuperação-de-energia)
@@ -98,29 +100,69 @@ Pronto! O servidor sobe em `localhost:25565` e o painel do Syncthing em `http://
 
 ---
 
+### 🥇 Fluxo A — Primeiro PC
+Você tem o mundo e vai hospedar. **Todo o roteiro está no menu: opção `P` → `[1]`**, que confere
+cada pré-requisito e mostra o que falta.
+
+1. **Dependências** — duplo clique em `menu.bat` → opção **`X`**. Instala Docker, Git e Tailscale
+   e configura o salvamento automático de 30 min.
+2. **Entre no Tailscale** (app ou `tailscale up`). É a rede por onde os amigos vão conectar.
+3. **Abra o assistente** — opção **`P`** → **`[1] Este é o PRIMEIRO PC`**. Ele valida tudo acima.
+4. **Traga seu mundo** — opção **`!`** (Importar mundo). Aponte a pasta do save (a que contém
+   `level.dat`). Ele faz backup do que existir, copia e migra os UUIDs para modo offline.
+5. **Compartilhe sua identidade** — assistente **`P`** → **`[3]`** mostra seu **Device ID** do
+   Syncthing e seu **IP Tailscale**. Envie os dois para os amigos.
+6. **Pareie** — assistente **`P`** → **`[4]`** e cole o Device ID de cada amigo.
+7. **Suba o servidor** — opção **`1`**. Os amigos entram em `SEU-IP-TAILSCALE:25565`.
+8. **Ao terminar** — opção **`2`** e aguarde o sync ficar `Up to Date` antes de desligar o PC.
+
+### 🤝 Fluxo B — PC adicional
+Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` → `[2]`.**
+
+1. **Instale o Tailscale** e entre na **mesma rede** do primeiro PC.
+2. **Clone o projeto** e rode `menu.bat` → opção **`X`** (dependências).
+3. **Abra o assistente** — opção **`P`** → **`[2] Este é um PC ADICIONAL`**.
+4. **Troque os Device IDs** — assistente **`P`** → **`[4]`**, cole o ID do dono do mundo; ele faz o
+   mesmo com o seu (que aparece em **`P`** → **`[3]`**).
+5. **Aguarde o mapa chegar a 100%.** O assistente mostra o progresso e quanto falta. Pode demorar —
+   o mundo tem vários GB.
+6. ⛔ **Não use a opção `1` antes de 100%.** Subir o servidor com o mapa incompleto cria uma versão
+   paralela do mundo e gera **conflito (split-brain)**. Enquanto sincroniza, **entre no servidor do
+   outro jogador** pelo IP Tailscale dele.
+7. **Quando for sua vez de hospedar:** o outro roda a opção **`2`** e espera o sync terminar; só
+   então você roda a opção **`1`**. Nunca os dois ao mesmo tempo.
+
+---
+
 ## 🕹️ Como usar — o painel `menu.bat`
 
 | Opção | O que faz |
 |-------|-----------|
-| **1 · Iniciar** | Limpa conflitos do Syncthing e sobe os contêineres (`docker compose up -d`). |
-| **2 · Status** | Mostra contêineres, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
-| **3 · Logs** | Últimas 80 linhas do log do Minecraft. |
-| **4 · Console (RCON)** | Abre um console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
-| **D · Detector de erros** | Diagnóstico completo: daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
-| **5 · Reiniciar** | Reinicia só o Minecraft. |
-| **6 · Parar Minecraft** | Encerramento limpo do Minecraft (use **antes do handoff**). O Syncthing segue enviando o save. |
-| **7 · Remover container do Minecraft** | `down` do stack do jogo. **O Syncthing não é afetado** — é um stack separado. |
-| **8 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
-| **9 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
+| **1 · Jogar** | Garante o Syncthing no ar, limpa conflitos e sobe o servidor. |
+| **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**). O Syncthing segue enviando o save. |
+| **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
+| **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
+| **5 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
+| **6 · Logs** | Últimas 80 linhas do log do Minecraft. |
+| **7 · Console (RCON)** | Console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
+| **8 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
+| **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e configura o salvamento automático de 30 min. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. |
-| **I · Importar mundo** | Importa um mundo externo (**substitui** o atual, com backup automático) e migra os dados dos jogadores de UUID online→offline. |
+| **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
+| **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
+| **K · Remover container** | ⚠️ `down` do stack do jogo. **O Syncthing não é afetado** — é um stack separado. |
 | **0 · Sair** | Fecha o painel. |
 
-### 📥 Importar um mundo existente (opção `I`)
+> 🎨 O painel mostra um **cabeçalho ao vivo** (servidor · sync · amigo conectado) e separa as ações
+> em *Dia a dia*, *Ferramentas*, *Manutenção* e **Zona de risco**. As duas ações destrutivas usam
+> as teclas **`!`** e **`K`** de propósito — ficam longe dos números do dia a dia, para não
+> serem acionadas sem querer.
+
+### 📥 Importar um mundo existente
 Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecraft`) para o servidor:
 
-1. No painel, escolha **`I`**. O Minecraft é parado automaticamente.
+1. No painel, escolha **`!`**. O Minecraft é parado automaticamente.
 2. Cole o **caminho da pasta do mundo** (a que contém o `level.dat`), ex.:
    `C:\Users\voce\AppData\Roaming\.minecraft\saves\MeuMundo`.
 3. Confirme. O script:
@@ -136,16 +178,16 @@ Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecr
 > antigos (online), então precisam ser renomeados para os novos (offline) — é isso que a opção faz.
 
 ### 🔗 Sincronizar com um amigo (Syncthing)
-1. Abra o painel do Syncthing (opção **9**).
+1. Abra o painel do Syncthing (opção **8**) — ou use o assistente **`P`** → **`[4]`**, que faz o pareamento para você.
 2. **Add Remote Device** → cole o **Device ID** do seu amigo (e ele adiciona o seu).
 3. Compartilhe **apenas** a pasta `minecraft-data` (a pasta `./data`).
 4. Garanta que **ambos estejam online no Tailscale**. Dica: em *Advanced → Addresses*,
    fixe o endereço do outro como `tcp://<IP-Tailscale-dele>:22000` para conexão direta.
 
 ### 🔄 Ciclo de revezamento (IMPORTANTE)
-- **Host ativo termina de jogar:** opção **6 (Parar Minecraft)** e aguarde o Syncthing
-  ficar `Up to Date` (opção **2** mostra o %) **antes de desligar**.
-- **O outro só então** dá **[1] Iniciar** no PC dele. Nunca dois rodando o Minecraft ao mesmo tempo.
+- **Host ativo termina de jogar:** opção **2 (Parar / passar a vez)** e aguarde o Syncthing
+  ficar `Up to Date` (opção **3** mostra o %) **antes de desligar**.
+- **O outro só então** dá **[1] Jogar** no PC dele. Nunca dois rodando o Minecraft ao mesmo tempo.
 
 ### 🛟 Salvamento automático e recuperação de energia
 - **Autosave a cada 30 min** — a opção **`X`** cria uma tarefa agendada do Windows
@@ -154,7 +196,7 @@ Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecr
   (queda de energia), você perde **no máximo ~30 min** de progresso.
 - **Auto-restart após queda de energia** — o serviço `mc` usa `restart: unless-stopped`. Se o PC
   reiniciar (pico de energia) **com o servidor rodando**, o Docker sobe o Minecraft sozinho no boot.
-  Se você parar de propósito pela opção **6** (handoff), ele **fica parado** — sem risco de split-brain.
+  Se você parar de propósito pela opção **2** (handoff), ele **fica parado** — sem risco de split-brain.
   (Requer o Docker Desktop iniciando com o Windows, o que já é o padrão configurado.)
 
 ### 🧱 Resiliência: por que são dois stacks Docker
@@ -204,7 +246,7 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 
 ## 🧾 Captura de erros / diagnóstico
 
-- **Opção `D` (Detector de erros)** — diagnóstico completo que aponta problemas: daemon do Docker
+- **Opção `4` (Detector de erros)** — diagnóstico completo que aponta problemas: daemon do Docker
   parado, contêiner `exited`/`unhealthy`/em *crash loop*, códigos de saída (ex.: `137` = falta de
   memória), erros recentes nos logs do Minecraft e do Syncthing, e histórico de erros do menu.
   Termina com um resumo de quantos pontos de atenção foram encontrados.
@@ -217,8 +259,8 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
   o Docker marca o contêiner como `unhealthy` automaticamente quando ele para de responder.
 - Toda ação do menu registra **sucesso ou falha** com data/hora em **`logs/menu.log`**.
 - Antes de iniciar, o menu **verifica se o Docker está rodando** e avisa se não estiver.
-- A opção **2 (Status)** é o diagnóstico rápido: estado dos contêineres, saúde e % de sync.
-- Log ao vivo do servidor: opção **3**, ou no terminal:
+- A opção **3 (Status)** é o diagnóstico rápido: estado dos contêineres, saúde e % de sync.
+- Log ao vivo do servidor: opção **6**, ou no terminal:
   ```bash
   docker compose logs -f mc
   ```
@@ -236,12 +278,14 @@ Server-Minecraft/
 ├── LICENSE              # Licença GNU GPL v3.0
 ├── .gitignore           # Ignora dados, segredos, backups e logs
 ├── scripts/
-│   ├── status.ps1       # Relatório de status (usado pela opção 2)
-│   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção D)
+│   ├── render-menu.ps1  # Desenha o painel (cabeçalho ao vivo + duas colunas)
+│   ├── setup-wizard.ps1 # Assistente de primeiros passos e pareamento (opção P)
+│   ├── status.ps1       # Relatório de status (opção 3)
+│   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + autosave (opção X)
 │   ├── autosave.ps1     # save-all flush periódico (tarefa agendada de 30 min)
 │   ├── run-hidden.vbs   # lançador silencioso do autosave (sem janela de console)
-│   ├── import-world.ps1 # Importa um mundo externo (opção I)
+│   ├── import-world.ps1 # Importa um mundo externo (opção !)
 │   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │
 │  --- gerados localmente, NÃO versionados (.gitignore) ---

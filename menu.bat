@@ -1,6 +1,7 @@
 @echo off
 setlocal
-title Painel de Controle - Servidor Minecraft P2P
+chcp 65001 >nul 2>&1
+title Painel de Controle - Minecraft P2P
 
 :: ================== PORTABILIDADE ==================
 :: ROOT = pasta onde este .bat esta (funciona em QUALQUER PC/pasta)
@@ -15,56 +16,28 @@ cd /d "%ROOT%"
 
 :menu
 cls
-echo ===================================================
-echo         PAINEL DE CONTROLE - MINECRAFT P2P
-echo         Pasta: %ROOT%
-echo ===================================================
-echo.
-echo   --- OPERACAO ---
-echo   [1] Iniciar servidor (limpa conflitos do Syncthing)
-echo   [2] STATUS (conteineres, saude e sincronizacao)
-echo.
-echo   --- MONITORAR ---
-echo   [3] Ver ultimos logs do Minecraft
-echo   [4] Console / Comandos do servidor (RCON)
-echo   [D] Detector de erros (diagnostico completo)
-echo.
-echo   --- CONTROLE ---
-echo   [5] Reiniciar apenas o Minecraft
-echo   [6] Parar o Minecraft (encerramento limpo - use antes do handoff)
-echo   [7] Remover o container do Minecraft (down do stack do jogo)
-echo       NOTA: o Syncthing e um stack separado e fica SEMPRE ligado.
-echo.
-echo   --- EXTRAS ---
-echo   [8] Backup do mapa (.zip com data/hora)
-echo   [9] Abrir painel do Syncthing no navegador
-echo.
-echo   --- SETUP ---
-echo   [X] Instalar/verificar dependencias (Docker, Git, Tailscale)
-echo   [U] Sincronizar projeto com o GitHub (git pull)
-echo   [I] Importar mundo + dados de jogadores (SUBSTITUI o mundo atual)
-echo.
-echo   [0] Sair
-echo.
-echo ===================================================
-set /p "opcao=Digite a opcao e tecle ENTER: "
+:: O painel (cabecalho com status ao vivo + duas colunas) e desenhado pelo
+:: PowerShell, que cuida de cores e alinhamento.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\render-menu.ps1"
+set /p "opcao=  Opcao: "
 
 if "%opcao%"=="1" goto iniciar
-if "%opcao%"=="2" goto status
-if "%opcao%"=="3" goto logs
-if "%opcao%"=="4" goto console
-if "%opcao%"=="5" goto reiniciar
-if "%opcao%"=="6" goto parar_mc
-if "%opcao%"=="7" goto parar_tudo
-if "%opcao%"=="8" goto backup
-if "%opcao%"=="9" goto syncthing
-if /i "%opcao%"=="D" goto diagnostico
+if "%opcao%"=="2" goto parar_mc
+if "%opcao%"=="3" goto status
+if "%opcao%"=="4" goto diagnostico
+if "%opcao%"=="5" goto backup
+if "%opcao%"=="6" goto logs
+if "%opcao%"=="7" goto console
+if "%opcao%"=="8" goto syncthing
+if "%opcao%"=="9" goto reiniciar
 if /i "%opcao%"=="X" goto instalar
 if /i "%opcao%"=="U" goto atualizar
-if /i "%opcao%"=="I" goto importar
+if /i "%opcao%"=="P" goto primeiros
+if /i "%opcao%"=="K" goto parar_tudo
+if "%opcao%"=="!" goto importar
 if "%opcao%"=="0" goto sair
 echo.
-echo Opcao invalida! Tente novamente.
+echo   Opcao invalida! Tente novamente.
 timeout /t 2 >nul 2>&1
 goto menu
 
@@ -93,11 +66,55 @@ echo.
 pause
 goto menu
 
+:parar_mc
+cls
+echo === PARANDO O MINECRAFT (encerramento limpo) ===
+echo.
+docker compose -f "%COMPOSE%" stop mc
+if errorlevel 1 (
+    echo [ERRO] Falha ao parar o Minecraft. Log: "%LOGFILE%"
+    call :log "ERRO: 'stop mc' falhou"
+) else (
+    call :log "OK: 'stop mc'"
+)
+echo.
+echo ATENCAO: O Syncthing continua ATIVO para enviar o save ao seu amigo.
+echo Aguarde a sincronizacao concluir no painel http://localhost:8384
+echo (status "Up to Date") ANTES de desligar o computador.
+echo.
+pause
+goto menu
+
 :status
 cls
 echo === STATUS DO AMBIENTE ===
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\status.ps1"
+echo.
+pause
+goto menu
+
+:diagnostico
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\detect-errors.ps1"
+call :log "Diagnostico (detector de erros) executado"
+echo.
+pause
+goto menu
+
+:backup
+cls
+echo === BACKUP DO MAPA ===
+echo.
+echo Dica: pare o Minecraft (opcao [2]) antes, para um backup 100%% consistente.
+echo Compactando o mapa, aguarde...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if(-not(Test-Path '%ROOT%\backups')){New-Item -ItemType Directory -Path '%ROOT%\backups' | Out-Null}; $ts=Get-Date -Format 'yyyyMMdd_HHmmss'; $dst=Join-Path '%ROOT%\backups' ('world_backup_'+$ts+'.zip'); Compress-Archive -Path '%ROOT%\data\world\*' -DestinationPath $dst -Force; Write-Host ('Backup criado em: '+$dst)"
+if errorlevel 1 (
+    echo [ERRO] Falha no backup. Log: "%LOGFILE%"
+    call :log "ERRO: backup falhou"
+) else (
+    call :log "OK: backup do mapa criado"
+)
 echo.
 pause
 goto menu
@@ -128,6 +145,16 @@ echo.
 pause
 goto menu
 
+:syncthing
+cls
+echo === ABRINDO PAINEL DO SYNCTHING ===
+echo.
+start "" "http://localhost:8384"
+echo Painel aberto no navegador padrao (http://localhost:8384).
+echo.
+pause
+goto menu
+
 :reiniciar
 cls
 echo === REINICIANDO O MINECRAFT ===
@@ -144,69 +171,10 @@ echo.
 pause
 goto menu
 
-:parar_mc
+:primeiros
 cls
-echo === PARANDO APENAS O MINECRAFT ===
-echo.
-docker compose -f "%COMPOSE%" stop mc
-if errorlevel 1 (
-    echo [ERRO] Falha ao parar o Minecraft. Log: "%LOGFILE%"
-    call :log "ERRO: 'stop mc' falhou"
-) else (
-    call :log "OK: 'stop mc'"
-)
-echo.
-echo ATENCAO: O Syncthing continua ATIVO para enviar o save ao seu amigo.
-echo Aguarde a sincronizacao concluir no painel http://localhost:8384
-echo (status "Up to Date") ANTES de desligar o computador.
-echo.
-pause
-goto menu
-
-:parar_tudo
-cls
-echo === REMOVENDO O CONTAINER DO MINECRAFT ===
-echo.
-echo O Syncthing NAO sera afetado: ele roda num stack separado
-echo (compose.sync.yaml) e continua replicando o mapa.
-echo.
-docker compose -f "%COMPOSE%" down
-if errorlevel 1 (
-    echo [ERRO] Falha ao encerrar. Log: "%LOGFILE%"
-    call :log "ERRO: 'down' do stack do jogo falhou"
-) else (
-    echo Stack do Minecraft encerrado. Syncthing segue no ar.
-    call :log "OK: 'down' do stack do jogo"
-)
-echo.
-pause
-goto menu
-
-:backup
-cls
-echo === BACKUP DO MAPA ===
-echo.
-echo Dica: pare o Minecraft (opcao 6) antes, para um backup 100%% consistente.
-echo Compactando o mapa, aguarde...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if(-not(Test-Path '%ROOT%\backups')){New-Item -ItemType Directory -Path '%ROOT%\backups' | Out-Null}; $ts=Get-Date -Format 'yyyyMMdd_HHmmss'; $dst=Join-Path '%ROOT%\backups' ('world_backup_'+$ts+'.zip'); Compress-Archive -Path '%ROOT%\data\world\*' -DestinationPath $dst -Force; Write-Host ('Backup criado em: '+$dst)"
-if errorlevel 1 (
-    echo [ERRO] Falha no backup. Log: "%LOGFILE%"
-    call :log "ERRO: backup falhou"
-) else (
-    call :log "OK: backup do mapa criado"
-)
-echo.
-pause
-goto menu
-
-:syncthing
-cls
-echo === ABRINDO PAINEL DO SYNCTHING ===
-echo.
-start "" "http://localhost:8384"
-echo Painel aberto no navegador padrao (http://localhost:8384).
-echo.
-pause
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\setup-wizard.ps1"
+call :log "Assistente de primeiros passos aberto"
 goto menu
 
 :instalar
@@ -250,14 +218,6 @@ echo.
 pause
 goto menu
 
-:diagnostico
-cls
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\detect-errors.ps1"
-call :log "Diagnostico (detector de erros) executado"
-echo.
-pause
-goto menu
-
 :importar
 cls
 echo === IMPORTAR MUNDO + DADOS DE JOGADORES ===
@@ -274,6 +234,25 @@ if errorlevel 1 (
     call :log "AVISO: import-world nao concluido"
 ) else (
     call :log "OK: importacao de mundo/dados concluida"
+)
+echo.
+pause
+goto menu
+
+:parar_tudo
+cls
+echo === REMOVENDO O CONTAINER DO MINECRAFT ===
+echo.
+echo O Syncthing NAO sera afetado: ele roda num stack separado
+echo (compose.sync.yaml) e continua replicando o mapa.
+echo.
+docker compose -f "%COMPOSE%" down
+if errorlevel 1 (
+    echo [ERRO] Falha ao encerrar. Log: "%LOGFILE%"
+    call :log "ERRO: 'down' do stack do jogo falhou"
+) else (
+    echo Stack do Minecraft encerrado. Syncthing segue no ar.
+    call :log "OK: 'down' do stack do jogo"
 )
 echo.
 pause
