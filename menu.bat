@@ -7,6 +7,7 @@ title Painel de Controle - Servidor Minecraft P2P
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 set "COMPOSE=%ROOT%\compose.yaml"
+set "COMPOSE_SYNC=%ROOT%\compose.sync.yaml"
 set "LOGDIR=%ROOT%\logs"
 set "LOGFILE=%LOGDIR%\menu.log"
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
@@ -30,8 +31,9 @@ echo   [D] Detector de erros (diagnostico completo)
 echo.
 echo   --- CONTROLE ---
 echo   [5] Reiniciar apenas o Minecraft
-echo   [6] Parar apenas o Minecraft (mantem Syncthing)
-echo   [7] Parar TUDO (Minecraft + Syncthing)
+echo   [6] Parar o Minecraft (encerramento limpo - use antes do handoff)
+echo   [7] Remover o container do Minecraft (down do stack do jogo)
+echo       NOTA: o Syncthing e um stack separado e fica SEMPRE ligado.
 echo.
 echo   --- EXTRAS ---
 echo   [8] Backup do mapa (.zip com data/hora)
@@ -75,7 +77,10 @@ if errorlevel 1 ( pause & goto menu )
 echo Limpando arquivos de conflito do Syncthing (.sync-conflict-*)...
 powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%ROOT%\data' -Recurse -Filter '*.sync-conflict-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue"
 echo.
-echo Subindo os conteineres (Minecraft + Syncthing)...
+echo Garantindo que a replicacao (Syncthing) esteja no ar...
+docker compose -f "%COMPOSE_SYNC%" up -d
+echo.
+echo Subindo o servidor de Minecraft...
 docker compose -f "%COMPOSE%" up -d
 if errorlevel 1 (
     echo [ERRO] Falha ao iniciar. Detalhes no log: "%LOGFILE%"
@@ -160,15 +165,18 @@ goto menu
 
 :parar_tudo
 cls
-echo === PARANDO TODA A INFRAESTRUTURA ===
+echo === REMOVENDO O CONTAINER DO MINECRAFT ===
+echo.
+echo O Syncthing NAO sera afetado: ele roda num stack separado
+echo (compose.sync.yaml) e continua replicando o mapa.
 echo.
 docker compose -f "%COMPOSE%" down
 if errorlevel 1 (
     echo [ERRO] Falha ao encerrar. Log: "%LOGFILE%"
-    call :log "ERRO: 'down' falhou"
+    call :log "ERRO: 'down' do stack do jogo falhou"
 ) else (
-    echo Infraestrutura encerrada (Minecraft + Syncthing).
-    call :log "OK: 'down'"
+    echo Stack do Minecraft encerrado. Syncthing segue no ar.
+    call :log "OK: 'down' do stack do jogo"
 )
 echo.
 pause

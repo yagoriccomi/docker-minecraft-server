@@ -27,6 +27,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [🔗 Sincronizar com um amigo](#-sincronizar-com-um-amigo-syncthing)
   - [🔄 Ciclo de revezamento](#-ciclo-de-revezamento-importante)
   - [🛟 Salvamento automático e recuperação](#-salvamento-automático-e-recuperação-de-energia)
+  - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
 - [🧾 Captura de erros / diagnóstico](#-captura-de-erros--diagnóstico)
 - [📂 Estrutura do projeto](#-estrutura-do-projeto)
@@ -107,8 +108,8 @@ Pronto! O servidor sobe em `localhost:25565` e o painel do Syncthing em `http://
 | **4 · Console (RCON)** | Abre um console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
 | **D · Detector de erros** | Diagnóstico completo: daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
 | **5 · Reiniciar** | Reinicia só o Minecraft. |
-| **6 · Parar Minecraft** | Para **só** o Minecraft e **mantém o Syncthing** enviando o save. |
-| **7 · Parar Tudo** | Encerra Minecraft + Syncthing. |
+| **6 · Parar Minecraft** | Encerramento limpo do Minecraft (use **antes do handoff**). O Syncthing segue enviando o save. |
+| **7 · Remover container do Minecraft** | `down` do stack do jogo. **O Syncthing não é afetado** — é um stack separado. |
 | **8 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
 | **9 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e configura o salvamento automático de 30 min. |
@@ -155,6 +156,29 @@ Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecr
   reiniciar (pico de energia) **com o servidor rodando**, o Docker sobe o Minecraft sozinho no boot.
   Se você parar de propósito pela opção **6** (handoff), ele **fica parado** — sem risco de split-brain.
   (Requer o Docker Desktop iniciando com o Windows, o que já é o padrão configurado.)
+
+### 🧱 Resiliência: por que são dois stacks Docker
+O projeto roda **dois projetos Docker independentes**:
+
+| Stack | Arquivo (projeto) | Papel | Quando desligar |
+|-------|-------------------|-------|-----------------|
+| **Jogo** | `compose.yaml` (`minecraft-p2p`) | Servidor Minecraft | Sempre que não estiver jogando |
+| **Replicação** | `compose.sync.yaml` (`minecraft-p2p-sync`) | Syncthing | **Nunca** |
+
+**Por quê?** Antes os dois ficavam no mesmo compose, e um `docker compose down` derrubava
+**os dois** — o PC parava de receber o mapa sem ninguém perceber. Se o outro jogador jogasse e
+depois desligasse a máquina (queda de energia, por exemplo), o mapa ficava **ilhado** num único
+PC, sem réplica. Com os projetos separados, qualquer `down` do jogo **não encosta** na replicação,
+que usa `restart: always` e volta sozinha após reboot ou queda de energia.
+
+> 🗂️ **Versionamento de arquivos:** a pasta usa *staggered file versioning* (retenção de **30
+> dias**). Se um sync sobrescrever algo indevidamente, as versões antigas ficam em `.stversions/`
+> dentro de `data/` — o Syncthing **não replica** essa pasta. É a rede de segurança contra
+> conflito destrutivo.
+
+> 💡 **A prova real de resiliência é ter uma 3ª cópia sempre online** (um Raspberry Pi, NAS ou
+> VPS rodando só o Syncthing em *Receive Only*). Com 2 nós que se revezam, existe uma janela em
+> que o mapa vive numa máquina só.
 
 ---
 
@@ -205,7 +229,8 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 
 ```
 Server-Minecraft/
-├── compose.yaml         # Orquestração Docker (Minecraft + Syncthing)
+├── compose.yaml         # Stack do JOGO (Minecraft) — projeto `minecraft-p2p`
+├── compose.sync.yaml    # Stack de REPLICAÇÃO (Syncthing) — projeto separado, sempre no ar
 ├── menu.bat             # Painel de controle (portável, com log de erros)
 ├── README.md            # Este arquivo
 ├── LICENSE              # Licença GNU GPL v3.0
