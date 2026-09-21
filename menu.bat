@@ -18,7 +18,9 @@ cd /d "%ROOT%"
 cls
 :: O painel (cabecalho com status ao vivo + duas colunas) e desenhado pelo
 :: PowerShell, que cuida de cores e alinhamento.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\render-menu.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\render-menu.ps1" <nul
+:: Zera antes de ler: sem isso, um ENTER vazio repetiria a ULTIMA opcao escolhida.
+set "opcao="
 set /p "opcao=  Opcao: "
 
 if "%opcao%"=="1" goto iniciar
@@ -47,6 +49,23 @@ echo === INICIANDO SERVIDOR ===
 echo.
 call :check_docker
 if errorlevel 1 ( pause & goto menu )
+:: Regra de host unico: se outro PC ja esta com o servidor no ar, avisa e pede confirmacao.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\check-host.ps1" <nul
+if errorlevel 2 goto iniciar_confirma
+goto iniciar_go
+:iniciar_confirma
+set "conf="
+set /p "conf=  Digite SIM para subir mesmo assim (ENTER cancela): "
+if /i not "%conf%"=="SIM" (
+    echo   Cancelado. Entre no servidor do outro host pelo IP acima.
+    call :log "Jogar cancelado: servidor ja ativo em outro host"
+    echo.
+    pause
+    goto menu
+)
+call :log "AVISO: servidor iniciado mesmo com outro host ativo (usuario confirmou)"
+:iniciar_go
+echo.
 echo Limpando arquivos de conflito do Syncthing (.sync-conflict-*)...
 powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%ROOT%\data' -Recurse -Filter '*.sync-conflict-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue"
 echo.

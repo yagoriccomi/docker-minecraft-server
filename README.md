@@ -138,7 +138,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 
 | Opção | O que faz |
 |-------|-----------|
-| **1 · Jogar** | Garante o Syncthing no ar, limpa conflitos e sobe o servidor. |
+| **1 · Jogar** | Antes de subir, **verifica se outro PC já está hospedando** — se estiver, mostra quem, o IP e os jogadores, e pede confirmação (`SIM`). Depois garante o Syncthing no ar, limpa conflitos e sobe o servidor. |
 | **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**). O Syncthing segue enviando o save. |
 | **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
 | **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
@@ -154,7 +154,8 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **K · Remover container** | ⚠️ `down` do stack do jogo. **O Syncthing não é afetado** — é um stack separado. |
 | **0 · Sair** | Fecha o painel. |
 
-> 🎨 O painel mostra um **cabeçalho ao vivo** (servidor · sync · amigo conectado) e separa as ações
+> 🎨 O painel mostra um **cabeçalho ao vivo** — **quem está hospedando** na rede Tailscale (com IP e
+> jogadores online), o estado da replicação e os amigos conectados no sync — e separa as ações
 > em *Dia a dia*, *Ferramentas*, *Manutenção* e **Zona de risco**. As duas ações destrutivas usam
 > as teclas **`!`** e **`K`** de propósito — ficam longe dos números do dia a dia, para não
 > serem acionadas sem querer.
@@ -279,6 +280,8 @@ Server-Minecraft/
 ├── .gitignore           # Ignora dados, segredos, backups e logs
 ├── scripts/
 │   ├── render-menu.ps1  # Desenha o painel (cabeçalho ao vivo + duas colunas)
+│   ├── lib-hosts.ps1    # Descobre quem hospeda no Tailscale + ping do Minecraft
+│   ├── check-host.ps1   # Trava da opção 1: avisa se outro PC já está no ar
 │   ├── setup-wizard.ps1 # Assistente de primeiros passos e pareamento (opção P)
 │   ├── status.ps1       # Relatório de status (opção 3)
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
