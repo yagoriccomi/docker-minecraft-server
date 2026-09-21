@@ -28,10 +28,29 @@ if (Test-Path $cfgPath) {
         $conn = Invoke-RestMethod -Uri 'http://localhost:8384/rest/system/connections' -Headers $hd -TimeoutSec 5
         $devs = @($conn.connections.PSObject.Properties | Where-Object { $_.Value.connected })
         Write-Host ("Dispositivos conectados: " + $devs.Count)
-        foreach ($d in $devs) { Write-Host ("  - " + $d.Name.Substring(0,7) + '...') }
+        foreach ($d in $devs) {
+            $nome = ($cfg.configuration.device | Where-Object { $_.id -eq $d.Name }).name
+            $comp = Invoke-RestMethod -Uri ('http://localhost:8384/rest/db/completion?folder=minecraft-data&device=' + $d.Name) -Headers $hd -TimeoutSec 5
+            Write-Host ("  - {0} ({1}...): {2}% em dia com este PC" -f $nome, $d.Name.Substring(0,7), [math]::Floor($comp.completion))
+        }
     } catch {
         Write-Host 'Syncthing nao respondeu (container parado?).'
     }
 } else {
     Write-Host 'config.xml do Syncthing nao encontrado (Syncthing ainda nao rodou aqui).'
 }
+
+Write-Host ''
+Write-Host '=== SYNC AUTOMATICO E BACKUP DIARIO ===' -ForegroundColor Cyan
+foreach ($t in @('MinecraftP2P-Sync', 'MinecraftP2P-Backup')) {
+    $task = Get-ScheduledTask -TaskName $t
+    if ($task) { Write-Host ("{0}: {1} | proxima execucao {2:dd/MM HH:mm}" -f $t, $task.State, ($task | Get-ScheduledTaskInfo).NextRunTime) }
+    else { Write-Host "${t}: NAO agendada (opcao A do menu)" -ForegroundColor Yellow }
+}
+foreach ($l in @('sync.log', 'backup.log')) {
+    $p = Join-Path $root "logs\$l"
+    if (Test-Path $p) { Write-Host ("Ultimo registro em logs\${l}: " + (Get-Content $p -Tail 1)) }
+}
+$diarios = @(Get-ChildItem (Join-Path $root 'backups') -Filter 'world_diario_*.zip' -File | Sort-Object Name -Descending)
+Write-Host ("Backups diarios guardados: " + $diarios.Count)
+foreach ($b in $diarios) { Write-Host ("  - {0} ({1:N2} GB)" -f $b.Name, ($b.Length / 1GB)) }

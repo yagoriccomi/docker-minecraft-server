@@ -30,15 +30,16 @@ echo   [D] Detector de erros (diagnostico completo)
 echo.
 echo   --- CONTROLE ---
 echo   [5] Reiniciar apenas o Minecraft
-echo   [6] Parar apenas o Minecraft (mantem Syncthing)
+echo   [6] Parar apenas o Minecraft (envia o save final pelo Syncthing)
 echo   [7] Parar TUDO (Minecraft + Syncthing)
 echo.
 echo   --- EXTRAS ---
-echo   [8] Backup do mapa (.zip com data/hora)
+echo   [8] Backup do mapa agora (.zip com data/hora)
 echo   [9] Abrir painel do Syncthing no navegador
 echo.
 echo   --- SETUP ---
 echo   [X] Instalar/verificar dependencias (Docker, Git, Tailscale)
+echo   [A] Agendar sync do mapa (a cada 30 min) + backup diario (22:00)
 echo   [U] Sincronizar projeto com o GitHub (git pull)
 echo   [I] Importar mundo + dados de jogadores (SUBSTITUI o mundo atual)
 echo.
@@ -58,6 +59,7 @@ if "%opcao%"=="8" goto backup
 if "%opcao%"=="9" goto syncthing
 if /i "%opcao%"=="D" goto diagnostico
 if /i "%opcao%"=="X" goto instalar
+if /i "%opcao%"=="A" goto agendar
 if /i "%opcao%"=="U" goto atualizar
 if /i "%opcao%"=="I" goto importar
 if "%opcao%"=="0" goto sair
@@ -147,13 +149,23 @@ docker compose -f "%COMPOSE%" stop mc
 if errorlevel 1 (
     echo [ERRO] Falha ao parar o Minecraft. Log: "%LOGFILE%"
     call :log "ERRO: 'stop mc' falhou"
+    echo.
+    pause
+    goto menu
+)
+call :log "OK: 'stop mc'"
+echo.
+echo Enviando o save final para os outros PCs pelo Syncthing...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\sync-world.ps1"
+if errorlevel 1 (
+    call :log "ERRO: sync do save final falhou"
 ) else (
-    call :log "OK: 'stop mc'"
+    call :log "OK: sync do save final"
 )
 echo.
-echo ATENCAO: O Syncthing continua ATIVO para enviar o save ao seu amigo.
-echo Aguarde a sincronizacao concluir no painel http://localhost:8384
-echo (status "Up to Date") ANTES de desligar o computador.
+echo ATENCAO: o Syncthing continua ATIVO. Se algum PC apareceu acima como
+echo offline ou com tempo esgotado, ele so recebe o save quando conectar:
+echo deixe este computador ligado ate la (a opcao 2 mostra quanto cada PC ja tem).
 echo.
 pause
 goto menu
@@ -167,7 +179,7 @@ if errorlevel 1 (
     echo [ERRO] Falha ao encerrar. Log: "%LOGFILE%"
     call :log "ERRO: 'down' falhou"
 ) else (
-    echo Infraestrutura encerrada (Minecraft + Syncthing).
+    echo Infraestrutura encerrada ^(Minecraft + Syncthing^).
     call :log "OK: 'down'"
 )
 echo.
@@ -178,11 +190,12 @@ goto menu
 cls
 echo === BACKUP DO MAPA ===
 echo.
-echo Dica: pare o Minecraft (opcao 6) antes, para um backup 100%% consistente.
-echo Compactando o mapa, aguarde...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if(-not(Test-Path '%ROOT%\backups')){New-Item -ItemType Directory -Path '%ROOT%\backups' | Out-Null}; $ts=Get-Date -Format 'yyyyMMdd_HHmmss'; $dst=Join-Path '%ROOT%\backups' ('world_backup_'+$ts+'.zip'); Compress-Archive -Path '%ROOT%\data\world\*' -DestinationPath $dst -Force; Write-Host ('Backup criado em: '+$dst)"
+echo Pode rodar com o servidor ligado: o mundo fica congelado so durante a copia.
+echo Backups manuais NAO entram no rodizio dos 3 diarios (nunca sao apagados).
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\backup-world.ps1"
 if errorlevel 1 (
-    echo [ERRO] Falha no backup. Log: "%LOGFILE%"
+    echo [ERRO] Falha no backup. Detalhes: "%LOGDIR%\backup.log"
     call :log "ERRO: backup falhou"
 ) else (
     call :log "OK: backup do mapa criado"
@@ -206,12 +219,32 @@ cls
 echo === INSTALAR / VERIFICAR DEPENDENCIAS ===
 echo.
 echo Isto vai baixar/instalar Docker Desktop, Git e Tailscale (via winget)
-echo e configurar o salvamento automatico do mundo (a cada 30 min).
+echo e agendar o sync do mapa (a cada 30 min) e o backup diario (22:00).
 echo O Windows pode pedir permissao de administrador durante a instalacao.
 echo.
 pause
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\install-deps.ps1"
 call :log "Instalacao/verificacao de dependencias executada"
+echo.
+pause
+goto menu
+
+:agendar
+cls
+echo === AGENDAR SYNC DO MAPA + BACKUP DIARIO ===
+echo.
+echo Cria/atualiza duas tarefas no Agendador de Tarefas do Windows:
+echo   MinecraftP2P-Sync   - a cada 30 min congela o mundo e sincroniza o mapa
+echo   MinecraftP2P-Backup - todo dia as 22:00 faz backup .zip (mantem os 3 mais recentes)
+echo Para desfazer: powershell -ExecutionPolicy Bypass -File scripts\install-tasks.ps1 -Remove
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\install-tasks.ps1"
+if errorlevel 1 (
+    echo [ERRO] Falha ao agendar as tarefas. Log: "%LOGFILE%"
+    call :log "ERRO: agendamento de sync/backup falhou"
+) else (
+    call :log "OK: sync 30 min + backup diario agendados"
+)
 echo.
 pause
 goto menu
@@ -262,7 +295,7 @@ docker compose -f "%COMPOSE%" stop mc >nul 2>&1
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\import-world.ps1"
 if errorlevel 1 (
     echo.
-    echo [AVISO] Importacao nao concluida (cancelada ou com erro). Log: "%LOGFILE%"
+    echo [AVISO] Importacao nao concluida ^(cancelada ou com erro^). Log: "%LOGFILE%"
     call :log "AVISO: import-world nao concluido"
 ) else (
     call :log "OK: importacao de mundo/dados concluida"
