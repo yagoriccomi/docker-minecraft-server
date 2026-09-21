@@ -24,12 +24,13 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 - [🚀 Instalação (em qualquer PC)](#-instalação-em-qualquer-pc)
   - [🥇 Fluxo A — Primeiro PC](#-fluxo-a--primeiro-pc)
   - [🤝 Fluxo B — PC adicional](#-fluxo-b--pc-adicional)
-- [🕹️ Como usar — o painel menu.bat](#-como-usar--o-painel-menubat)
+- [🕹️ Como usar — o painel menu.bat](#️-como-usar--o-painel-menubat)
   - [📥 Importar um mundo existente](#-importar-um-mundo-existente)
   - [🔗 Sincronizar com um amigo](#-sincronizar-com-um-amigo-syncthing)
   - [🔄 Ciclo de revezamento](#-ciclo-de-revezamento-importante)
   - [🛟 Salvamento automático e recuperação](#-salvamento-automático-e-recuperação-de-energia)
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
+  - [⬆️ Atualizando da v1.0.0](#️-atualizando-da-v100)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
 - [🧾 Captura de erros / diagnóstico](#-captura-de-erros--diagnóstico)
 - [📂 Estrutura do projeto](#-estrutura-do-projeto)
@@ -89,7 +90,7 @@ Regra de ouro (anti "split-brain"/corrupção): **apenas um host roda o Minecraf
    > Não usa Git? Baixe o ZIP pelo GitHub e extraia.
 3. **Aceite o EULA da Minecraft:** já está definido em `compose.yaml` (`EULA: "TRUE"`).
    Ao usar, você concorda com o https://www.minecraft.net/eula.
-4. **Inicie:** dê um duplo clique em **`menu.bat`** e escolha a opção **[1] Iniciar**.
+4. **Inicie:** dê um duplo clique em **`menu.bat`** e escolha a opção **[1] Jogar**.
    - Na 1ª vez o Docker baixa as imagens e o servidor (~alguns minutos).
    - A pasta `data/` (mapa/config) é criada automaticamente.
 
@@ -143,12 +144,12 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
 | **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
 | **5 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
-| **6 · Logs** | Últimas 80 linhas do log do Minecraft. |
+| **6 · Logs** | Logs de **onde o servidor estiver**: deste PC (container) ou de **outro PC** — neste caso, a cópia do `latest.log` que chega pelo Syncthing, dizendo de quem é e se a cópia está em dia. ENTER atualiza. |
 | **7 · Console (RCON)** | Console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
 | **8 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e configura o salvamento automático de 30 min. |
-| **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. |
+| **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
 | **K · Remover container** | ⚠️ `down` do stack do jogo. **O Syncthing não é afetado** — é um stack separado. |
@@ -223,6 +224,15 @@ que usa `restart: always` e volta sozinha após reboot ou queda de energia.
 > VPS rodando só o Syncthing em *Receive Only*). Com 2 nós que se revezam, existe uma janela em
 > que o mapa vive numa máquina só.
 
+### ⬆️ Atualizando da v1.0.0
+A v1.1.0 separou o jogo e a replicação em dois projetos Docker. Os containers criados pela v1.0.0
+ficam no projeto antigo — então, depois do `[U]`, **basta abrir o `menu.bat`**: ele migra sozinho.
+
+- **Syncthing:** migrado na hora, sem perder config nem pareamentos (tudo fica em `syncthing_config/`).
+- **Minecraft parado:** o container antigo é removido — o mundo em `data/` não é tocado.
+- **Minecraft rodando:** nada é mexido. O menu só avisa e continua funcionando normalmente; a
+  migração acontece sozinha na próxima vez que você parar o servidor (opção **2**).
+
 ---
 
 ## 🔧 O que alterar — e para quê
@@ -282,6 +292,8 @@ Server-Minecraft/
 │   ├── render-menu.ps1  # Desenha o painel (cabeçalho ao vivo + duas colunas)
 │   ├── lib-hosts.ps1    # Descobre quem hospeda no Tailscale + ping do Minecraft
 │   ├── check-host.ps1   # Trava da opção 1: avisa se outro PC já está no ar
+│   ├── show-logs.ps1    # Logs locais ou do host remoto via Syncthing (opção 6)
+│   ├── migrate-legacy.ps1 # Migra containers da v1.0.0 para os stacks separados
 │   ├── setup-wizard.ps1 # Assistente de primeiros passos e pareamento (opção P)
 │   ├── status.ps1       # Relatório de status (opção 3)
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)

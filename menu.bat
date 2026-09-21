@@ -14,6 +14,11 @@ set "LOGFILE=%LOGDIR%\menu.log"
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 cd /d "%ROOT%"
 
+:: Migra containers da estrutura antiga (v1.0.0), se existirem. Nada acontece se ja
+:: estiver tudo na estrutura nova. Codigo 3 = mostrou algo: pausa para o usuario ler.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\migrate-legacy.ps1" <nul
+if errorlevel 3 ( echo. & pause )
+
 :menu
 cls
 :: O painel (cabecalho com status ao vivo + duas colunas) e desenhado pelo
@@ -49,6 +54,13 @@ echo === INICIANDO SERVIDOR ===
 echo.
 call :check_docker
 if errorlevel 1 ( pause & goto menu )
+docker inspect -f "{{.State.Status}}" minecraft 2>nul | findstr /x "running" >nul
+if not errorlevel 1 (
+    echo O servidor ja esta rodando NESTE PC.
+    echo.
+    pause
+    goto menu
+)
 :: Regra de host unico: se outro PC ja esta com o servidor no ar, avisa e pede confirmacao.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\check-host.ps1" <nul
 if errorlevel 2 goto iniciar_confirma
@@ -65,6 +77,8 @@ if /i not "%conf%"=="SIM" (
 )
 call :log "AVISO: servidor iniciado mesmo com outro host ativo (usuario confirmou)"
 :iniciar_go
+:: Remove container antigo PARADO da v1.0.0 (senao o 'up' falha com nome em uso)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\migrate-legacy.ps1" <nul
 echo.
 echo Limpando arquivos de conflito do Syncthing (.sync-conflict-*)...
 powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%ROOT%\data' -Recurse -Filter '*.sync-conflict-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue"
@@ -89,7 +103,10 @@ goto menu
 cls
 echo === PARANDO O MINECRAFT (encerramento limpo) ===
 echo.
-docker compose -f "%COMPOSE%" stop mc
+call :has_local_mc
+if errorlevel 1 ( echo Nenhum servidor de Minecraft neste PC para parar. & echo. & pause & goto menu )
+:: Ate 60 s para o servidor salvar o mundo e fechar limpo.
+docker stop -t 60 minecraft
 if errorlevel 1 (
     echo [ERRO] Falha ao parar o Minecraft. Log: "%LOGFILE%"
     call :log "ERRO: 'stop mc' falhou"
@@ -140,12 +157,9 @@ goto menu
 
 :logs
 cls
-echo === ULTIMOS LOGS DO MINECRAFT (80 linhas) ===
-echo.
-docker compose -f "%COMPOSE%" logs mc --tail 80
-if errorlevel 1 call :log "ERRO: 'logs mc' falhou"
-echo.
-pause
+:: Mostra os logs de onde o servidor estiver: deste PC ou, se estiver em outro,
+:: a copia do latest.log que chega pelo Syncthing. Tem loop proprio (ENTER atualiza).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\show-logs.ps1"
 goto menu
 
 :console
@@ -155,7 +169,9 @@ echo.
 echo Digite comandos do Minecraft (ex: list, seed, time set day).
 echo Para sair do console e voltar ao menu, digite: exit
 echo.
-docker compose -f "%COMPOSE%" exec mc rcon-cli
+call :has_local_mc
+if errorlevel 1 ( echo O servidor nao esta rodando NESTE PC. & echo. & pause & goto menu )
+docker exec -it minecraft rcon-cli
 if errorlevel 1 (
     echo [ERRO] Nao foi possivel abrir o console. O Minecraft esta rodando?
     call :log "ERRO: 'exec rcon-cli' falhou"
@@ -178,7 +194,9 @@ goto menu
 cls
 echo === REINICIANDO O MINECRAFT ===
 echo.
-docker compose -f "%COMPOSE%" restart mc
+call :has_local_mc
+if errorlevel 1 ( echo O servidor nao esta rodando NESTE PC. & echo. & pause & goto menu )
+docker restart -t 60 minecraft
 if errorlevel 1 (
     echo [ERRO] Falha ao reiniciar. Log: "%LOGFILE%"
     call :log "ERRO: 'restart mc' falhou"
@@ -245,7 +263,7 @@ echo Esta opcao SUBSTITUI o mundo atual pelo mundo de uma pasta externa.
 echo Um backup .zip do mundo atual e criado ANTES de qualquer alteracao.
 echo O Minecraft sera parado para liberar os arquivos.
 echo.
-docker compose -f "%COMPOSE%" stop mc >nul 2>&1
+docker stop -t 60 minecraft >nul 2>&1
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\import-world.ps1"
 if errorlevel 1 (
     echo.
@@ -265,7 +283,10 @@ echo.
 echo O Syncthing NAO sera afetado: ele roda num stack separado
 echo (compose.sync.yaml) e continua replicando o mapa.
 echo.
-docker compose -f "%COMPOSE%" down
+call :has_local_mc
+if errorlevel 1 ( echo Nenhum container do Minecraft neste PC. & echo. & pause & goto menu )
+docker stop -t 60 minecraft >nul 2>&1
+docker rm minecraft
 if errorlevel 1 (
     echo [ERRO] Falha ao encerrar. Log: "%LOGFILE%"
     call :log "ERRO: 'down' do stack do jogo falhou"
@@ -278,6 +299,11 @@ pause
 goto menu
 
 :: ================== SUB-ROTINAS ==================
+:has_local_mc
+:: 0 = existe um container 'minecraft' neste PC (estrutura nova OU antiga)
+docker inspect minecraft >nul 2>&1
+exit /b %errorlevel%
+
 :check_docker
 docker info >nul 2>&1
 if errorlevel 1 (
