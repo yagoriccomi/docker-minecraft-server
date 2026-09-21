@@ -1,5 +1,5 @@
 # Detector de erros do ambiente (Docker + Minecraft + Syncthing + Tailscale).
-# Portavel. Chamado pela opcao [D] do menu.bat.
+# Portavel. Chamado pela opcao [4] do menu.bat.
 $ErrorActionPreference = 'SilentlyContinue'
 $root    = Split-Path $PSScriptRoot -Parent
 $logfile = Join-Path $root 'logs\menu.log'
@@ -81,15 +81,15 @@ foreach ($name in @('minecraft', 'syncthing')) {
             }
             if ($restarts -gt 5) { Alerta "$name : $restarts reinicios acumulados (possivel instabilidade)" }
         }
-        'restarting' { Falha "$name : REINICIANDO EM LOOP (crash loop) - veja os logs (opcao 3)" }
+        'restarting' { Falha "$name : REINICIANDO EM LOOP (crash loop) - veja os logs (opcao 6)" }
         'exited' {
             if ($name -eq 'minecraft' -and $tsOutros.Count -gt 0) {
                 # Minecraft parado aqui, mas ATIVO em outro host => este PC esta em STANDBY (correto pelo revezamento)
                 Okk "$name : parado - este PC em STANDBY (host ativo: $($tsOutros[0].Nome) @ $($tsOutros[0].IP)). Normal no revezamento."
             }
-            elseif ($exit -eq 0) { Okk "$name : parado (exit 0) - normal se voce encerrou pela opcao 6/7" }
+            elseif ($exit -eq 0) { Okk "$name : parado (exit 0) - normal se voce encerrou pela opcao 2 ou K" }
             elseif ($exit -eq 137) { Falha "$name : saiu com EXIT 137 (SIGKILL / falta de memoria). Considere reduzir MEMORY ou fechar apps." }
-            else { Falha "$name : saiu com ERRO (exit $exit). Verifique os logs (opcao 3)." }
+            else { Falha "$name : saiu com ERRO (exit $exit). Verifique os logs (opcao 6)." }
         }
         default { Alerta "$name : estado inesperado '$status'" }
     }

@@ -1,12 +1,16 @@
-# Status do ambiente Minecraft P2P (chamado pelo menu.bat opcao 2)
+# Status do ambiente Minecraft P2P (chamado pelo menu.bat opcao 3)
 # Portavel: descobre a raiz do projeto a partir da propria localizacao do script.
 $ErrorActionPreference = 'SilentlyContinue'
-$root    = Split-Path $PSScriptRoot -Parent
-$compose = Join-Path $root 'compose.yaml'
-$cfgPath = Join-Path $root 'syncthing_config\config.xml'
+$root        = Split-Path $PSScriptRoot -Parent
+$compose     = Join-Path $root 'compose.yaml'
+$composeSync = Join-Path $root 'compose.sync.yaml'
+$cfgPath     = Join-Path $root 'syncthing_config\config.xml'
 
 Write-Host '=== CONTEINERES ===' -ForegroundColor Cyan
+Write-Host '-- Stack do jogo (compose.yaml) --' -ForegroundColor DarkGray
 docker compose -f $compose ps
+Write-Host '-- Stack de replicacao (compose.sync.yaml) - deve estar SEMPRE no ar --' -ForegroundColor DarkGray
+docker compose -f $composeSync ps
 
 Write-Host ''
 Write-Host '=== SAUDE DO MINECRAFT ===' -ForegroundColor Cyan

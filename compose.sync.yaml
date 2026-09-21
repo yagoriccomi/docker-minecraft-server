@@ -1,0 +1,37 @@
+# 🔁 Stack de REPLICAÇÃO (Syncthing) — INDEPENDENTE do Minecraft.
+#
+# POR QUE ESTE ARQUIVO EXISTE:
+# Antes o Syncthing ficava no mesmo compose do Minecraft. Um `docker compose down`
+# derrubava OS DOIS — e o PC parava de receber o mapa sem ninguém perceber
+# (foi exatamente o que causou o mapa "ilhado" em 09/2026).
+# Agora o Syncthing é um projeto Docker SEPARADO (`minecraft-p2p-sync`), então
+# qualquer `down` do stack do jogo NÃO o afeta.
+#
+# ⚠️ REGRA: este stack deve ficar SEMPRE no ar, inclusive quando você não está jogando.
+# É ele que garante que o mapa tenha mais de uma cópia viva na rede.
+name: minecraft-p2p-sync
+
+services:
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: minecraft-host1
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "America/Sao_Paulo"
+    volumes:
+      - ./syncthing_config:/config   # Config/chaves locais (NÃO sincronizar)
+      - ./data:/data                 # ÚNICA pasta exposta ao Syncthing
+    ports:
+      - "8384:8384"            # Painel web (http://localhost:8384)
+      - "22000:22000/tcp"      # Transferência de dados (sync)
+      - "22000:22000/udp"      # Transferência de dados (QUIC)
+      - "21027:21027/udp"      # Descoberta local
+    healthcheck:               # Docker marca 'unhealthy' se o Syncthing parar de responder
+      test: ["CMD", "curl", "-fsS", "http://localhost:8384/rest/noauth/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: always            # SEMPRE no ar: volta após reboot, queda de energia ou falha.

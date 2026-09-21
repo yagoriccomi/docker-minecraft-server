@@ -2,7 +2,7 @@
 # Pode rodar com o servidor ligado: quem esta jogando nao percebe nada.
 #   -Daily      : backup automatico (tarefa MinecraftP2P-Backup, todo dia as 22:00). Gera
 #                 backups\world_diario_AAAAMMDD_HHmmss.zip e mantem so os -Keep mais recentes.
-#   sem -Daily  : backup manual (opcao 8 do menu) -> backups\world_backup_AAAAMMDD_HHmmss.zip,
+#   sem -Daily  : backup manual (opcao 5 do menu) -> backups\world_backup_AAAAMMDD_HHmmss.zip,
 #                 que NUNCA e apagado automaticamente.
 param(
     [switch]$Daily,

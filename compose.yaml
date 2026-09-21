@@ -1,12 +1,15 @@
-# 📌 Servidor de Minecraft Descentralizado (Docker + Syncthing)
-# Configuração derivada estritamente das regras do CLAUDE.md:
-#   - Limite de memória da JVM: 4G (MEMORY: "4G")
-#   - Modo offline: ONLINE_MODE: "FALSE"
-#   - Apenas a pasta ./data é exposta ao Syncthing
-#   - ./syncthing_config é estritamente local (NÃO sincronizar)
+# 🎮 Stack do SERVIDOR DE MINECRAFT.
 #
-# Decisão do Gemini: manter TYPE VANILLA + VERSION LATEST por ora.
-#    Eventual incompatibilidade do mapa (.thanos) será diagnosticada no Passo 5 (logs).
+# A REPLICAÇÃO (Syncthing) vive em `compose.sync.yaml`, num projeto Docker SEPARADO
+# (`minecraft-p2p-sync`), de propósito: assim um `down` aqui NUNCA derruba a
+# sincronização do mapa. Ver a seção "Resiliência" no README.
+#
+# Regras do projeto:
+#   - Limite de memória da JVM: 4G (MEMORY: "4G") — host de 16 GB
+#   - Modo offline: ONLINE_MODE: "FALSE" (login via MultiMC)
+#   - VERSION fixada em 1.21.11 para casar com o cliente (NÃO usar LATEST:
+#     atualizaria o mapa e quebraria a compatibilidade)
+name: minecraft-p2p
 
 services:
   mc:
@@ -19,7 +22,7 @@ services:
     environment:
       EULA: "TRUE"             # Necessário para iniciar o servidor
       TYPE: "VANILLA"
-      VERSION: "1.21.11"
+      VERSION: "1.21.11"       # Deve casar com a versão do cliente
       MEMORY: "4G"             # Limite mandatório do CLAUDE.md (host 16 GB)
       ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
       USE_AIKAR_FLAGS: "TRUE"  # Flags de GC otimizadas para o heap de 4 GB
@@ -28,27 +31,3 @@ services:
       - ./data:/data           # Volume de dados do servidor (contém o world)
     restart: unless-stopped    # Volta sozinho após reboot/queda de energia SE estava rodando.
                                # NAO volta se você parar pela opção 6 (handoff) — preserva o anti-split-brain.
-
-  syncthing:
-    image: lscr.io/linuxserver/syncthing:latest
-    container_name: syncthing
-    hostname: minecraft-host1
-    environment:
-      PUID: "1000"
-      PGID: "1000"
-      TZ: "America/Sao_Paulo"
-    volumes:
-      - ./syncthing_config:/config   # Config/chaves locais (NÃO sincronizar)
-      - ./data:/data                 # ÚNICA pasta exposta ao Syncthing
-    ports:
-      - "8384:8384"            # Painel web (http://localhost:8384)
-      - "22000:22000/tcp"      # Transferência de dados (sync)
-      - "22000:22000/udp"      # Transferência de dados (QUIC)
-      - "21027:21027/udp"      # Descoberta local
-    healthcheck:               # Docker marca 'unhealthy' se o Syncthing parar de responder
-      test: ["CMD", "curl", "-fsS", "http://localhost:8384/rest/noauth/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    restart: unless-stopped    # Pode ficar ligado em standby (apenas Syncthing)

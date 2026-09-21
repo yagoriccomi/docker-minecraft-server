@@ -1,5 +1,5 @@
 # Sincroniza o mapa com os outros PCs de forma CONSISTENTE.
-# Chamado pela tarefa agendada MinecraftP2P-Sync (a cada 30 min) e pela opcao 6 do menu.
+# Chamado pela tarefa agendada MinecraftP2P-Sync (a cada 30 min) e pela opcao 2 do menu.
 #
 # Com o servidor ligado 24/7 o Minecraft grava os arquivos do mundo o tempo todo. Se o
 # Syncthing enviasse cada gravacao na hora, os outros PCs receberiam arquivos "a quente"

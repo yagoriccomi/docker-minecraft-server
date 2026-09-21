@@ -29,7 +29,7 @@ if ($Remove) {
         Write-Host '[OK] Syncthing de volta ao modo automatico (watcher ligado).' -ForegroundColor Green
     } catch {
         Write-Host ('[AVISO] Nao foi possivel religar o watcher do Syncthing: {0}' -f $_.Exception.Message) -ForegroundColor Yellow
-        Write-Host '        Religue no painel (opcao 9): pasta Minecraft Data > Editar > Avancado >' -ForegroundColor Yellow
+        Write-Host '        Religue no painel (opcao 8): pasta Minecraft Data > Editar > Avancado >' -ForegroundColor Yellow
         Write-Host '        marque "Watch for Changes" e ponha o rescan em 3600 s.' -ForegroundColor Yellow
     }
     return
