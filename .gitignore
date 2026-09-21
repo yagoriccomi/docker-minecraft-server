@@ -31,3 +31,10 @@ Desktop.ini
 # --- Arquivos locais/pessoais (nao publicados no repo generico) ---
 /CLAUDE.md
 /docs/RELATORIO-HARDWARE.md
+
+# --- Config pessoal do painel remoto (IP/usuario do host remoto) ---
+# Use o menu-remoto.config.EXEMPLO.bat como modelo. NUNCA versionar o real.
+/menu-remoto.config.bat
+
+# --- Configuracoes locais do Claude Code ---
+/.claude/

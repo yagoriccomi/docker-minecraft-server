@@ -11,8 +11,9 @@ Servidor de Minecraft **Java** rodando em **Docker**, com o mapa sincronizado en
 amigos via **Syncthing** sobre uma rede **Tailscale** (VPN mesh). Sem hospedagem paga,
 sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junto.
 
-> **Ideia central:** só **uma** pessoa roda o servidor por vez. Ao terminar, o Syncthing
-> envia o mapa atualizado para o outro jogador, que assume na próxima sessão.
+> **Ideia central:** só **uma** pessoa roda o servidor por vez. Enquanto ele está no ar, o mapa
+> é sincronizado com os outros PCs **a cada 30 min**; ao terminar, o Syncthing envia a versão
+> final para o outro jogador, que assume na próxima sessão.
 
 ---
 
@@ -28,7 +29,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [📥 Importar um mundo existente](#-importar-um-mundo-existente)
   - [🔗 Sincronizar com um amigo](#-sincronizar-com-um-amigo-syncthing)
   - [🔄 Ciclo de revezamento](#-ciclo-de-revezamento-importante)
-  - [🛟 Salvamento automático e recuperação](#-salvamento-automático-e-recuperação-de-energia)
+  - [🛟 Sync automático, backup diário e recuperação](#-sync-automático-backup-diário-e-recuperação)
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
   - [⬆️ Atualizando da v1.0.0](#️-atualizando-da-v100)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
@@ -41,9 +42,11 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 ## ✨ Recursos
 
 - 🐳 **Docker Compose** — sobe Minecraft + Syncthing com um comando.
-- 🔁 **Sincronização P2P** do mundo via Syncthing (só a pasta de dados é compartilhada).
+- 🔁 **Sincronização P2P** do mundo via Syncthing (só a pasta de dados é compartilhada) — **a cada 30 min**
+  com o servidor no ar, sempre com o mundo "congelado" (nada de arquivo gravado pela metade).
 - 🖥️ **Painel `menu.bat`** — interface de console para iniciar, parar, status, logs, console RCON e backup.
-- 💾 **Backup em `.zip`** com carimbo de data/hora, em um clique.
+- 💾 **Backup em `.zip`** — **automático todo dia às 22:00** (guarda os 3 mais recentes) ou manual em um
+  clique, sem precisar parar o servidor.
 - 🧾 **Captura de erros** — cada ação registra sucesso/falha em `logs/menu.log`.
 - 📦 **Portável** — os scripts detectam a própria pasta; funciona em **qualquer PC / qualquer letra de disco**.
 
@@ -74,7 +77,7 @@ Regra de ouro (anti "split-brain"/corrupção): **apenas um host roda o Minecraf
 | **Git** | Clonar o repo e baixar atualizações (opção `U`) | https://git-scm.com/ |
 
 > 💡 **Atalho:** já tem o projeto na mão? A opção **`X`** do menu baixa e instala **Docker,
-> Git e Tailscale** automaticamente (via `winget`) e ainda configura o salvamento automático.
+> Git e Tailscale** automaticamente (via `winget`) e ainda agenda o sync (30 min) e o backup diário (22:00).
 
 > Windows: o Docker Desktop usa o backend **WSL 2** (o instalador cuida disso).
 
@@ -140,15 +143,16 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | Opção | O que faz |
 |-------|-----------|
 | **1 · Jogar** | Antes de subir, **verifica se outro PC já está hospedando** — se estiver, mostra quem, o IP e os jogadores, e pede confirmação (`SIM`). Depois garante o Syncthing no ar, limpa conflitos e sobe o servidor. |
-| **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**). O Syncthing segue enviando o save. |
-| **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** + dispositivos conectados. |
-| **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **e detecta se o servidor já está ativo em outro host do Tailscale** (com IP). |
-| **5 · Backup** | Compacta o mapa em `backups/world_backup_AAAAMMDD_HHmmss.zip`. |
+| **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**), **envia o save final** pelo Syncthing e mostra quanto falta para cada PC conectado. |
+| **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** de cada PC conectado (pelo nome). |
+| **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **se o servidor já está ativo em outro host do Tailscale** (com IP) e o estado das tarefas de sync/backup. |
+| **5 · Backup** | Backup manual em `backups/world_backup_AAAAMMDD_HHmmss.zip`, com o servidor ligado ou não (o mundo é congelado só durante a cópia). Nunca é apagado automaticamente. |
 | **6 · Logs** | Logs de **onde o servidor estiver**: deste PC (container) ou de **outro PC** — neste caso, a cópia do `latest.log` que chega pelo Syncthing, dizendo de quem é e se a cópia está em dia. ENTER atualiza. |
 | **7 · Console (RCON)** | Console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
 | **8 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
-| **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e configura o salvamento automático de 30 min. |
+| **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e agenda o sync e o backup diário (igual à opção `A`). |
+| **A · Agendar sync + backup** | Só agenda as tarefas: **sync a cada 30 min** e **backup diário às 22:00** (guarda 3). Não reinstala nada. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
@@ -187,19 +191,50 @@ Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecr
    fixe o endereço do outro como `tcp://<IP-Tailscale-dele>:22000` para conexão direta.
 
 ### 🔄 Ciclo de revezamento (IMPORTANTE)
-- **Host ativo termina de jogar:** opção **2 (Parar / passar a vez)** e aguarde o Syncthing
-  ficar `Up to Date` (opção **3** mostra o %) **antes de desligar**.
+- **Host ativo termina de jogar:** opção **2 (Parar / passar a vez)**. Ela envia o save final e espera os
+  PCs conectados receberem tudo. Se algum aparecer como `offline`, deixe o PC ligado até ele conectar
+  (a opção **3** mostra quanto cada PC já tem) **antes de desligar**.
 - **O outro só então** dá **[1] Jogar** no PC dele. Nunca dois rodando o Minecraft ao mesmo tempo.
 
-### 🛟 Salvamento automático e recuperação de energia
-- **Autosave a cada 30 min** — a opção **`X`** cria uma tarefa agendada do Windows
-  (`MinecraftP2P-AutoSave`) que, enquanto o servidor está no ar, executa `save-all flush` de 30 em
-  30 minutos. Assim o Syncthing sempre tem uma cópia recente em disco e, num desligamento abrupto
-  (queda de energia), você perde **no máximo ~30 min** de progresso.
+### 🛟 Sync automático, backup diário e recuperação
+
+A opção **`A`** (ou a **`X`**) cria duas tarefas no Agendador de Tarefas do Windows. Elas rodam
+escondidas (sem janela) e foram feitas para o servidor **ligado 24/7**:
+
+| Tarefa | Quando | O que faz |
+|--------|--------|-----------|
+| `MinecraftP2P-Sync` | a cada 30 min (minutos :15 e :45) | Congela o mundo, sincroniza o mapa com os outros PCs e descongela. |
+| `MinecraftP2P-Backup` | todo dia às 22:00 | Gera `backups/world_diario_AAAAMMDD_HHmmss.zip` e guarda só os **3 mais recentes**. |
+
+- **Por que "congelar" o mundo?** Com o servidor no ar, o Minecraft grava os arquivos de região o tempo
+  todo, e copiar ou sincronizar nessa hora pega arquivos pela metade. Por isso cada ciclo faz `save-off` +
+  `save-all flush` (tudo gravado, nenhuma escrita nova), lê a pasta e depois dá `save-on`. Quem está
+  jogando **não percebe nada**. O sync congela por uns 10–40 s (ou até 10 min, se um PC conectado ainda
+  estiver recebendo); o backup, por cerca de 1 min num mapa de ~2 GB. Sync e backup nunca rodam juntos.
+- **Syncthing em modo agendado:** no PC com as tarefas, o *watcher* do Syncthing fica **desligado** e o
+  rescan periódico zerado: só a tarefa de sync manda escanear (o ajuste é feito sozinho no 1º ciclo).
+  Entre um ciclo e outro o painel pode mostrar `Up to Date` com mudanças ainda não enviadas. Para desfazer
+  (remove as tarefas e religa o watcher):
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts\install-tasks.ps1 -Remove
+  ```
+- **Queda de energia:** o sync também grava o mundo em disco (`save-all flush`) a cada 30 min, então num
+  desligamento abrupto perde-se **no máximo ~30 min** de progresso.
 - **Auto-restart após queda de energia** — o serviço `mc` usa `restart: unless-stopped`. Se o PC
   reiniciar (pico de energia) **com o servidor rodando**, o Docker sobe o Minecraft sozinho no boot.
   Se você parar de propósito pela opção **2** (handoff), ele **fica parado** — sem risco de split-brain.
   (Requer o Docker Desktop iniciando com o Windows, o que já é o padrão configurado.)
+- **Backups manuais** (opção **8**) e os feitos antes de importar um mundo (`world_antes_import_*`)
+  **nunca** entram no rodízio dos 3 diários. Faça um manual antes de qualquer mudança arriscada.
+- **PC desligado (ou sem ninguém logado) às 22:00?** O backup roda assim que o Windows voltar.
+- Resultados em `logs/sync.log` e `logs/backup.log`; resumo nas opções **2** e **D** do menu.
+
+**Restaurar um backup:**
+1. Pare o Minecraft (opção **6**).
+2. Mova a pasta `data\world` para **fora** de `data` (ex.: `backups\world_antigo`). Dentro de `data`
+   ela seria sincronizada com os amigos.
+3. Extraia o `.zip` para `data\world`. O `level.dat` precisa ficar direto em `data\world`, não numa subpasta.
+4. Inicie pela opção **1**. O próximo sync envia o mundo restaurado para os outros PCs.
 
 ### 🧱 Resiliência: por que são dois stacks Docker
 O projeto roda **dois projetos Docker independentes**:
@@ -259,7 +294,8 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 
 - **Opção `4` (Detector de erros)** — diagnóstico completo que aponta problemas: daemon do Docker
   parado, contêiner `exited`/`unhealthy`/em *crash loop*, códigos de saída (ex.: `137` = falta de
-  memória), erros recentes nos logs do Minecraft e do Syncthing, e histórico de erros do menu.
+  memória), erros recentes nos logs do Minecraft e do Syncthing, histórico de erros do menu e se o
+  último sync/backup automático falhou ou parou de rodar.
   Termina com um resumo de quantos pontos de atenção foram encontrados.
 - **Guardião do revezamento (Tailscale)** — o detector varre os hosts da sua rede Tailscale e, se
   encontrar o Minecraft **já ativo em outro host** (porta 25565), avisa **em qual host e com qual IP**
@@ -270,7 +306,8 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
   o Docker marca o contêiner como `unhealthy` automaticamente quando ele para de responder.
 - Toda ação do menu registra **sucesso ou falha** com data/hora em **`logs/menu.log`**.
 - Antes de iniciar, o menu **verifica se o Docker está rodando** e avisa se não estiver.
-- A opção **3 (Status)** é o diagnóstico rápido: estado dos contêineres, saúde e % de sync.
+- A opção **3 (Status)** é o diagnóstico rápido: estado dos contêineres, saúde, quanto cada PC conectado
+  já recebeu, próximas execuções do sync/backup e os backups diários guardados.
 - Log ao vivo do servidor: opção **6**, ou no terminal:
   ```bash
   docker compose logs -f mc
@@ -297,9 +334,12 @@ Server-Minecraft/
 │   ├── setup-wizard.ps1 # Assistente de primeiros passos e pareamento (opção P)
 │   ├── status.ps1       # Relatório de status (opção 3)
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
-│   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + autosave (opção X)
-│   ├── autosave.ps1     # save-all flush periódico (tarefa agendada de 30 min)
-│   ├── run-hidden.vbs   # lançador silencioso do autosave (sem janela de console)
+│   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + agenda as tarefas (opção X)
+│   ├── install-tasks.ps1# Agenda sync (30 min) + backup diário 22:00 (opção A)
+│   ├── sync-world.ps1   # Sync consistente do mapa (tarefa de 30 min e opção 2)
+│   ├── backup-world.ps1 # Backup .zip do mapa (diário guarda 3; manual pela opção 5)
+│   ├── common.ps1       # Funções comuns: congelar o mundo, trava sync/backup, API do Syncthing
+│   ├── run-hidden.vbs   # Lançador silencioso das tarefas agendadas (sem janela de console)
 │   ├── import-world.ps1 # Importa um mundo externo (opção !)
 │   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │
@@ -307,7 +347,7 @@ Server-Minecraft/
 ├── data/                # Mundo + config do servidor (o mapa NÃO vai pro GitHub)
 ├── syncthing_config/    # Chaves/config do Syncthing (privado, por máquina)
 ├── backups/             # Backups .zip do mapa
-└── logs/                # Logs do menu.bat
+└── logs/                # Logs do menu.bat, do sync e do backup
 ```
 
 ---

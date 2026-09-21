@@ -157,6 +157,7 @@ NL
 P '  MANUTENCAO                         ZONA DE RISCO' 'White'; NL
 Row '[X]' 'Instalar dependencias'        'Cyan'  '[!]' 'Importar mundo (SUBSTITUI)' 'Red'
 Row '[U]' 'Atualizar projeto (git pull)' 'Cyan'  '[K]' 'Remover container do jogo'  'Red'
+Row '[A]' 'Agendar sync + backup'      'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL
 P '  ' ; P '[0]' 'DarkGray'; P ' Sair' 'DarkGray'; NL

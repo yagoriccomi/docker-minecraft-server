@@ -1,5 +1,5 @@
 # Detector de erros do ambiente (Docker + Minecraft + Syncthing + Tailscale).
-# Portavel. Chamado pela opcao [D] do menu.bat.
+# Portavel. Chamado pela opcao [4] do menu.bat.
 $ErrorActionPreference = 'SilentlyContinue'
 $root    = Split-Path $PSScriptRoot -Parent
 $logfile = Join-Path $root 'logs\menu.log'
@@ -173,6 +173,35 @@ if (-not $tsExe) {
     Okk 'o Minecraft esta ativo NESTE PC (porta 25565 aberta) - voce e o host ativo'
 } else {
     Okk 'nenhum host do Tailscale rodando o Minecraft - livre para iniciar o seu (opcao 1)'
+}
+
+# -------- 7) Sync automatico (30 min) e backup diario (22:00) --------
+Write-Host "`n[7] Sync automatico e backup diario"
+function Ultimo-Registro ($arquivo) {
+    $p = Join-Path $root "logs\$arquivo"
+    if (Test-Path $p) { return (Get-Content $p -Tail 1) }
+}
+if (-not (Get-ScheduledTask -TaskName 'MinecraftP2P-Sync')) {
+    Aviso 'MinecraftP2P-Sync nao agendada (opcao A do menu).'
+} else {
+    $ultima = Ultimo-Registro 'sync.log'
+    if (-not $ultima) { Okk 'MinecraftP2P-Sync agendada (ainda sem execucao registrada)' }
+    elseif ($ultima -match 'ERRO \|') { Alerta "o ultimo sync falhou -> $ultima" }
+    elseif ($ultima -match '^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]' -and
+            ((Get-Date) - [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd HH:mm:ss', $null)).TotalHours -gt 2) {
+        Alerta "o sync nao roda ha mais de 2h (tarefa parada?) -> $ultima"
+    }
+    else { Okk $ultima }
+}
+if (-not (Get-ScheduledTask -TaskName 'MinecraftP2P-Backup')) {
+    Aviso 'MinecraftP2P-Backup nao agendada (opcao A do menu).'
+} else {
+    $ultima  = Ultimo-Registro 'backup.log'
+    $diarios = @(Get-ChildItem (Join-Path $root 'backups') -Filter 'world_diario_*.zip' -File | Sort-Object Name -Descending)
+    if ($ultima -match 'ERRO \|') { Alerta "o ultimo backup falhou -> $ultima" }
+    elseif ($diarios.Count -eq 0) { Okk 'MinecraftP2P-Backup agendada (nenhum backup diario ainda)' }
+    elseif (((Get-Date) - $diarios[0].LastWriteTime).TotalHours -gt 26) { Alerta "o backup diario mais recente tem mais de 26h: $($diarios[0].Name)" }
+    else { Okk ("{0} backup(s) diario(s); mais recente: {1}" -f $diarios.Count, $diarios[0].Name) }
 }
 
 # -------- Resumo --------
