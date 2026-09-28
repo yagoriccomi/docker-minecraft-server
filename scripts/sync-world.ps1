@@ -3,7 +3,7 @@
 #
 # Com o servidor ligado 24/7 o Minecraft grava os arquivos do mundo o tempo todo. Se o
 # Syncthing enviasse cada gravacao na hora, os outros PCs receberiam arquivos "a quente"
-# (pela metade). Por isso, neste PC, o watcher do Syncthing fica DESLIGADO e a cada ciclo:
+# (pela metade). Por isso, com a tarefa agendada, o watcher do Syncthing fica DESLIGADO e a cada ciclo:
 #   1. o mundo e congelado (save-off + save-all flush);
 #   2. o Syncthing escaneia a pasta data (foto consistente do mapa);
 #   3. o script espera os PCs conectados receberem tudo (no maximo -PeerTimeoutMin minutos);
@@ -70,12 +70,19 @@ try {
     $inicio    = Get-Date
     $congelado = Suspend-WorldSaves
 
-    # Syncthing em "modo agendado": sem watcher e sem rescan periodico (so este script escaneia).
-    # Feito com o mundo congelado porque a pasta reinicia e ja escaneia ao mudar a config.
+    # Syncthing em "modo agendado" (sem watcher e sem rescan periodico) SO se a tarefa
+    # MinecraftP2P-Sync existe: sem ela ninguem mais escanearia a pasta e o mapa pararia de ir
+    # para os outros PCs. Sem a tarefa (ex.: opcao 2 num PC que nao rodou a opcao A) o watcher
+    # fica/volta ligado. Feito com o mundo congelado porque a pasta reinicia e ja escaneia.
+    $agendado = [bool](Get-ScheduledTask -TaskName 'MinecraftP2P-Sync' -ErrorAction SilentlyContinue)
     $pasta = Invoke-Syncthing "/config/folders/$folderId"
-    if ($pasta.fsWatcherEnabled -or $pasta.rescanIntervalS -ne 0) {
+    if ($agendado -and ($pasta.fsWatcherEnabled -or $pasta.rescanIntervalS -ne 0)) {
         Set-FolderWatcher $false
         Write-Log 'sync | Syncthing ajustado: watcher desligado, a pasta so e escaneada por este script.'
+        Start-Sleep -Seconds 5
+    } elseif (-not $agendado -and -not $pasta.fsWatcherEnabled) {
+        Set-FolderWatcher $true
+        Write-Log 'sync | sem a tarefa MinecraftP2P-Sync: watcher do Syncthing religado (modo automatico).'
         Start-Sleep -Seconds 5
     }
 

@@ -24,7 +24,8 @@ if (-not (Test-Path (Join-Path $world 'level.dat'))) {
 }
 if (-not (Test-Path $backups)) { New-Item -ItemType Directory -Path $backups | Out-Null }
 
-# O .zip fica perto do tamanho do mundo (os arquivos de regiao ja sao comprimidos).
+# O .zip fica perto do tamanho do mundo (os arquivos de regiao ja sao comprimidos) - por
+# isso compressao "Fastest": quase o mesmo tamanho e bem menos tempo com o mundo congelado.
 $tamanho = (Get-ChildItem -LiteralPath $world -Recurse -File | Measure-Object Length -Sum).Sum
 $livre   = (New-Object System.IO.DriveInfo ([System.IO.Path]::GetPathRoot($backups))).AvailableFreeSpace
 if ($livre -lt $tamanho + 500MB) {
@@ -54,7 +55,7 @@ try {
     $zip = [System.IO.Compression.ZipFile]::Open($parcial, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($f in $arquivos) {
-            $entrada = $zip.CreateEntry($f.FullName.Substring($base.Length).Replace('\', '/'), [System.IO.Compression.CompressionLevel]::Optimal)
+            $entrada = $zip.CreateEntry($f.FullName.Substring($base.Length).Replace('\', '/'), [System.IO.Compression.CompressionLevel]::Fastest)
             $entrada.LastWriteTime = $f.LastWriteTime
             # FileShare ReadWrite: consegue ler os arquivos que o servidor mantem abertos.
             $origem = [System.IO.File]::Open($f.FullName, 'Open', 'Read', 'ReadWrite, Delete')

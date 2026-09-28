@@ -75,7 +75,7 @@ while ($true) {
                 } elseif ($sync -eq 'sincronizando') {
                     Write-Host "  Sincronizando agora - o log pode estar alguns segundos atras. Ultima linha ha $idade." -ForegroundColor DarkYellow
                 } elseif ($sync -eq 'em dia') {
-                    Write-Host "  Copia em dia com o Syncthing. Ultima linha escrita pelo servidor ha $idade." -ForegroundColor DarkGray
+                    Write-Host "  Em dia com o que o host ja enviou (o log chega a cada ~5 min). Ultima linha ha $idade." -ForegroundColor DarkGray
                 } else {
                     Write-Host "  Ultima linha ha $idade (estado do Syncthing indisponivel)." -ForegroundColor DarkGray
                 }

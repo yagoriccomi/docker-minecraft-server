@@ -211,10 +211,12 @@ escondidas (sem janela) e foram feitas para o servidor **ligado 24/7**:
 - **Por que "congelar" o mundo?** Com o servidor no ar, o Minecraft grava os arquivos de região o tempo
   todo, e copiar ou sincronizar nessa hora pega arquivos pela metade. Por isso cada ciclo faz `save-off` +
   `save-all flush` (tudo gravado, nenhuma escrita nova), lê a pasta e depois dá `save-on`. Quem está
-  jogando **não percebe nada**. O sync congela por uns 10–40 s (ou até 10 min, se um PC conectado ainda
-  estiver recebendo); o backup, por cerca de 1 min num mapa de ~2 GB. Sync e backup nunca rodam juntos.
+  jogando **não percebe nada**. O sync congela por uns 10–40 s (ou até 2 min, se um PC conectado ainda
+  estiver recebendo — o que faltar segue em segundo plano); o backup, por cerca de 1 min num mapa de ~2 GB. Sync e backup nunca rodam juntos.
 - **Syncthing em modo agendado:** no PC com as tarefas, o *watcher* do Syncthing fica **desligado** e o
   rescan periódico zerado: só a tarefa de sync manda escanear (o ajuste é feito sozinho no 1º ciclo).
+  Sem a tarefa, o watcher fica ligado. Os **logs** do servidor (data/logs) não esperam o ciclo: o
+  guardião os envia a cada 5 min, para os outros PCs acompanharem pela opção **6**.
   Entre um ciclo e outro o painel pode mostrar `Up to Date` com mudanças ainda não enviadas. Para desfazer
   (remove as tarefas e religa o watcher):
   ```powershell
@@ -226,13 +228,13 @@ escondidas (sem janela) e foram feitas para o servidor **ligado 24/7**:
   reiniciar (pico de energia) **com o servidor rodando**, o Docker sobe o Minecraft sozinho no boot.
   Se você parar de propósito pela opção **2** (handoff), ele **fica parado** — sem risco de split-brain.
   (Requer o Docker Desktop iniciando com o Windows, o que já é o padrão configurado.)
-- **Backups manuais** (opção **8**) e os feitos antes de importar um mundo (`world_antes_import_*`)
+- **Backups manuais** (opção **5**) e os feitos antes de importar um mundo (`world_antes_import_*`)
   **nunca** entram no rodízio dos 3 diários. Faça um manual antes de qualquer mudança arriscada.
 - **PC desligado (ou sem ninguém logado) às 22:00?** O backup roda assim que o Windows voltar.
-- Resultados em `logs/sync.log` e `logs/backup.log`; resumo nas opções **2** e **D** do menu.
+- Resultados em `logs/sync.log` e `logs/backup.log`; resumo nas opções **3** e **4** do menu.
 
 **Restaurar um backup:**
-1. Pare o Minecraft (opção **6**).
+1. Pare o Minecraft (opção **2**).
 2. Mova a pasta `data\world` para **fora** de `data` (ex.: `backups\world_antigo`). Dentro de `data`
    ela seria sincronizada com os amigos.
 3. Extraia o `.zip` para `data\world`. O `level.dat` precisa ficar direto em `data\world`, não numa subpasta.

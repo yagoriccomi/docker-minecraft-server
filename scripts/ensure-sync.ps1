@@ -100,7 +100,22 @@ if (-not (Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue)) {
 if ((Docker 'info --format {{.ServerVersion}}' 20).Code -ne 0) { exit 0 }
 
 $antes = Sync-State
-if ($antes -eq 'running') { exit 0 }                  # tudo certo: nao faz nada
+if ($antes -eq 'running') {
+    # Com o sync agendado o watcher fica desligado e o mapa so vai a cada 30 min. Os LOGS do
+    # servidor (data\logs) nao precisam do mundo congelado: escaneia so essa subpasta para os
+    # outros PCs verem os logs quase ao vivo (opcao 6 deles).
+    if ((Docker 'inspect -f {{.State.Status}} minecraft' 15).Out -eq 'running') {
+        try {
+            [xml]$cfg = Get-Content (Join-Path $root 'syncthing_config\config.xml')
+            $hd = @{ 'X-API-Key' = $cfg.configuration.gui.apikey }
+            $f  = Invoke-RestMethod 'http://localhost:8384/rest/config/folders/minecraft-data' -Headers $hd -TimeoutSec 10
+            if (-not $f.fsWatcherEnabled) {
+                Invoke-RestMethod 'http://localhost:8384/rest/db/scan?folder=minecraft-data&sub=logs' -Method Post -Headers $hd -TimeoutSec 60 | Out-Null
+            }
+        } catch { }
+    }
+    exit 0                                            # tudo certo: nao registra nada
+}
 
 $r = Sync-Up
 if ($r.Code -eq 0 -and (Sync-State) -eq 'running') {

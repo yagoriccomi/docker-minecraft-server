@@ -2,7 +2,9 @@
 #   MinecraftP2P-Sync   : a cada 30 min (minutos :15 e :45) -> sync-world.ps1
 #   MinecraftP2P-Backup : todo dia as 22:00                 -> backup-world.ps1 -Daily (mantem 3)
 # Rodam escondidas (sem janela) pelo lancador run-hidden.vbs. Resultados em logs\sync.log e
-# logs\backup.log, e nas opcoes 2 (status) e D (detector) do menu.
+# logs\backup.log, e nas opcoes 3 (status) e 4 (diagnostico) do menu.
+# O sync agendado espera os outros PCs no maximo 2 min com o mundo congelado: o que nao
+# chegar nesse tempo segue em segundo plano e o proximo ciclo (30 min) completa.
 # Uso: install-tasks.ps1          -> cria/atualiza as tarefas
 #      install-tasks.ps1 -Remove  -> remove as tarefas e devolve o Syncthing ao modo automatico
 param([switch]$Remove)
@@ -43,7 +45,7 @@ $agora  = Get-Date
 $inicio = $agora.Date.AddHours($agora.Hour).AddMinutes(15)
 while ($inicio -le $agora) { $inicio = $inicio.AddMinutes(30) }
 Register-ScheduledTask -TaskName 'MinecraftP2P-Sync' -Force `
-    -Action   (New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('"{0}" sync-world.ps1' -f $vbs)) `
+    -Action   (New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('"{0}" sync-world.ps1 -PeerTimeoutMin 2' -f $vbs)) `
     -Trigger  (New-ScheduledTaskTrigger -Once -At $inicio -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Days 3650)) `
     -Settings $config `
     -Description 'Minecraft P2P: congela o mundo, sincroniza o mapa pelo Syncthing e descongela. A cada 30 min, sem janela.' | Out-Null
