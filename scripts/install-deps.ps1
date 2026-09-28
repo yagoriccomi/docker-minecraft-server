@@ -1,5 +1,5 @@
 # Instala/verifica as dependencias do projeto (Docker Desktop, Git, Tailscale) via winget
-# e configura o salvamento automatico do mundo (tarefa agendada de 30 min).
+# e agenda o sync do mapa (a cada 30 min) e o backup diario (22:00) via install-tasks.ps1.
 $ErrorActionPreference = 'Continue'
 
 Write-Host '===================================================' -ForegroundColor Cyan
@@ -28,18 +28,11 @@ foreach ($p in $pacotes) {
 }
 
 Write-Host ''
-Write-Host '=== Configurando salvamento automatico do mundo (a cada 30 min) ===' -ForegroundColor Cyan
+Write-Host '=== Agendando sync do mapa (a cada 30 min) e backup diario (22:00) ===' -ForegroundColor Cyan
 try {
-    # Usa o lancador run-hidden.vbs (wscript) para rodar SEM piscar janela de console.
-    $vbs     = Join-Path $PSScriptRoot 'run-hidden.vbs'
-    $action  = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('"{0}"' -f $vbs)
-    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-                   -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Days 3650)
-    Register-ScheduledTask -TaskName 'MinecraftP2P-AutoSave' -Action $action -Trigger $trigger -Force `
-        -Description 'Salva o mundo do Minecraft (save-all flush) a cada 30 min, de forma silenciosa (sem janela).' | Out-Null
-    Write-Host '[OK] Tarefa "MinecraftP2P-AutoSave" registrada (roda a cada 30 min).' -ForegroundColor Green
+    & (Join-Path $PSScriptRoot 'install-tasks.ps1')
 } catch {
-    Write-Host ("[AVISO] Nao foi possivel registrar a tarefa de autosave: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+    Write-Host ("[AVISO] Nao foi possivel agendar as tarefas: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
 }
 
 Write-Host ''

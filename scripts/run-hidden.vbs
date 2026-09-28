@@ -1,12 +1,13 @@
 ' Lancador silencioso: executa um .ps1 desta pasta SEM abrir janela de console.
-' Usado pelas tarefas agendadas para evitar o "flash" do CMD.
+' Usado pelas tarefas agendadas (MinecraftP2P-Sync / -Backup / -SyncGuard) para evitar o "flash" do CMD.
 ' Uso: wscript.exe run-hidden.vbs [script.ps1] [argumentos]
-' Sem argumentos roda o autosave.ps1 (compatibilidade com a tarefa MinecraftP2P-AutoSave).
+' Sem argumentos roda o sync-world.ps1 (compatibilidade com a antiga tarefa MinecraftP2P-AutoSave,
+' cujo autosave.ps1 foi substituido pelo sync; o install-tasks.ps1 remove essa tarefa antiga).
 Dim shell, fso, here, script, args, i
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 here = fso.GetParentFolderName(WScript.ScriptFullName)
-script = "autosave.ps1"
+script = "sync-world.ps1"
 If WScript.Arguments.Count > 0 Then script = WScript.Arguments(0)
 args = ""
 For i = 1 To WScript.Arguments.Count - 1
