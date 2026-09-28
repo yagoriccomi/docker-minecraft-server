@@ -30,6 +30,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [🔄 Ciclo de revezamento](#-ciclo-de-revezamento-importante)
   - [🛟 Salvamento automático e recuperação](#-salvamento-automático-e-recuperação-de-energia)
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
+  - [🔒 Syncthing sempre no ar (guardião)](#-syncthing-sempre-no-ar-guardião)
   - [⬆️ Atualizando da v1.0.0](#️-atualizando-da-v100)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
 - [🧾 Captura de erros / diagnóstico](#-captura-de-erros--diagnóstico)
@@ -147,6 +148,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **6 · Logs** | Logs de **onde o servidor estiver**: deste PC (container) ou de **outro PC** — neste caso, a cópia do `latest.log` que chega pelo Syncthing, dizendo de quem é e se a cópia está em dia. ENTER atualiza. |
 | **7 · Console (RCON)** | Console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
 | **8 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
+| **S · Syncthing: ligar/desligar** | O Syncthing é mantido **sempre no ar** por um guardião. Esta é a **única** forma de desligá-lo de propósito (pede para digitar `DESLIGAR`). Religa pela mesma opção — ou automaticamente ao **Jogar**. |
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e configura o salvamento automático de 30 min. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
@@ -224,6 +226,26 @@ que usa `restart: always` e volta sozinha após reboot ou queda de energia.
 > VPS rodando só o Syncthing em *Receive Only*). Com 2 nós que se revezam, existe uma janela em
 > que o mapa vive numa máquina só.
 
+### 🔒 Syncthing sempre no ar (guardião)
+O `restart: always` do compose cobre queda do processo e reboot — mas **não** cobre o container
+ser removido (um `docker compose down`) nem o Docker Desktop fechado. Para isso existe o guardião,
+a tarefa agendada **`MinecraftP2P-SyncGuard`** (criada pela opção **`X`**), que a cada 5 minutos,
+sem abrir janela:
+
+| Situação encontrada | O que o guardião faz |
+|---|---|
+| Syncthing no ar | nada |
+| Container parado ou **removido** | sobe de novo (`compose.sync.yaml up -d`) |
+| Docker Desktop **fechado** | abre o Docker Desktop (no máx. 1 tentativa a cada 20 min); o Syncthing sobe no ciclo seguinte |
+| Docker aberto mas engine com defeito | não mexe — tenta de novo no próximo ciclo |
+| **Desligado de propósito** (opção **`S`**) | **respeita** e deixa desligado |
+
+O "de propósito" é uma marca em `logs/syncthing-desligado.flag`: qualquer outra forma de derrubar o
+Syncthing é tratada como acidente e revertida. Tudo o que o guardião faz fica em `logs/sync-guard.log`.
+
+> 💡 Deixe **desligada** a opção do Docker *"Open Docker Dashboard when Docker Desktop starts"*
+> (Settings → General): quando o guardião abrir o Docker, ele sobe só na bandeja.
+
 ### ⬆️ Atualizando da v1.0.0
 A v1.1.0 separou o jogo e a replicação em dois projetos Docker. Os containers criados pela v1.0.0
 ficam no projeto antigo — então, depois do `[U]`, **basta abrir o `menu.bat`**: ele migra sozinho.
@@ -299,7 +321,8 @@ Server-Minecraft/
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + autosave (opção X)
 │   ├── autosave.ps1     # save-all flush periódico (tarefa agendada de 30 min)
-│   ├── run-hidden.vbs   # lançador silencioso do autosave (sem janela de console)
+│   ├── run-hidden.vbs   # lançador silencioso das tarefas agendadas (sem janela de console)
+│   ├── ensure-sync.ps1  # Guardião: mantém o Syncthing sempre no ar (tarefa de 5 min + opção S)
 │   ├── import-world.ps1 # Importa um mundo externo (opção !)
 │   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │

@@ -40,6 +40,8 @@ foreach ($r in @($rows)) {
     if ($p[0] -eq 'minecraft') { $local = $p[1] }
     if ($p[0] -eq 'syncthing') { if ($p[1] -eq 'running') { $sync = 'no ar' } else { $sync = 'PARADO!' } }
 }
+# Desligado DE PROPOSITO (opcao S) nao e defeito: mostra em amarelo, nao em vermelho.
+if ($sync -ne 'no ar' -and (Test-Path (Join-Path $root 'logs\syncthing-desligado.flag'))) { $sync = 'desligado' }
 
 # ---------------- 2) REDE TAILSCALE (cache de 15 s) ----------------
 # A varredura custa ate ~0,7 s; o cache deixa os redesenhos seguidos instantaneos.
@@ -113,7 +115,7 @@ if (-not $docker) {
     $line1 += S 'desligado - ninguem esta hospedando' 'DarkGray'
 }
 
-$cSync = if ($sync -eq 'no ar') { 'Green' } else { 'Red' }
+$cSync = if ($sync -eq 'no ar') { 'Green' } elseif ($sync -eq 'desligado') { 'Yellow' } else { 'Red' }
 $cFr   = if ($friends -match '^(-|nenhum online|sem API)$') { 'Yellow' } else { 'Green' }
 if ($friends -eq '-') { $cFr = 'DarkGray' }
 $line2 = @( (S '  Sync:     ' 'Gray'), (S (Fit $sync 12) $cSync),
@@ -152,7 +154,7 @@ Row '[1]' 'Jogar (subir o servidor)'     'Green' '[6]' 'Ver logs do servidor' 'C
 Row '[2]' 'Parar / passar a vez'         'Green' '[7]' 'Console de comandos'  'Cyan'
 Row '[3]' 'Status do ambiente'           'Green' '[8]' 'Painel do Syncthing'  'Cyan'
 Row '[4]' 'Diagnostico de erros'         'Green' '[9]' 'Reiniciar o servidor' 'Cyan'
-Row '[5]' 'Backup do mapa'               'Green' ''    ''                     ''
+Row '[5]' 'Backup do mapa'               'Green' '[S]' 'Syncthing: ligar/desligar' 'Cyan'
 NL
 P '  MANUTENCAO                         ZONA DE RISCO' 'White'; NL
 Row '[X]' 'Instalar dependencias'        'Cyan'  '[!]' 'Importar mundo (SUBSTITUI)' 'Red'

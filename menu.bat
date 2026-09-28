@@ -37,6 +37,7 @@ if "%opcao%"=="6" goto logs
 if "%opcao%"=="7" goto console
 if "%opcao%"=="8" goto syncthing
 if "%opcao%"=="9" goto reiniciar
+if /i "%opcao%"=="S" goto sync_toggle
 if /i "%opcao%"=="X" goto instalar
 if /i "%opcao%"=="U" goto atualizar
 if /i "%opcao%"=="P" goto primeiros
@@ -84,7 +85,8 @@ echo Limpando arquivos de conflito do Syncthing (.sync-conflict-*)...
 powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%ROOT%\data' -Recurse -Filter '*.sync-conflict-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue"
 echo.
 echo Garantindo que a replicacao (Syncthing) esteja no ar...
-docker compose -f "%COMPOSE_SYNC%" up -d
+:: -Ligar tambem desfaz um "desligado de proposito": jogar sem sync gera split-brain.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure-sync.ps1" -Ligar <nul
 echo.
 echo Subindo o servidor de Minecraft...
 docker compose -f "%COMPOSE%" up -d
@@ -204,6 +206,33 @@ if errorlevel 1 (
     echo Minecraft reiniciado.
     call :log "OK: 'restart mc'"
 )
+echo.
+pause
+goto menu
+
+:sync_toggle
+cls
+echo === SYNCTHING (REPLICACAO DO MAPA) ===
+echo.
+if exist "%LOGDIR%\syncthing-desligado.flag" goto sync_ligar
+echo O Syncthing esta LIGADO e o guardiao o mantem no ar (confere a cada 5 min).
+echo.
+echo Desligar de proposito faz o mapa PARAR de ser enviado e recebido: o que for
+echo jogado aqui ou em outro PC nao chega ao outro lado ate voce religar.
+echo.
+set "conf="
+set /p "conf=  Digite DESLIGAR para confirmar (ENTER cancela): "
+if /i not "%conf%"=="DESLIGAR" ( echo   Cancelado. & echo. & pause & goto menu )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure-sync.ps1" -Desligar <nul
+call :log "Syncthing desligado de proposito (opcao S)"
+echo.
+pause
+goto menu
+:sync_ligar
+echo O Syncthing esta DESLIGADO de proposito. Religando...
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure-sync.ps1" -Ligar <nul
+call :log "Syncthing religado (opcao S)"
 echo.
 pause
 goto menu

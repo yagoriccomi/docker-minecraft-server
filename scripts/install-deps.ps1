@@ -43,6 +43,10 @@ try {
 }
 
 Write-Host ''
+Write-Host '=== Guardiao do Syncthing (mantem a replicacao sempre no ar) ===' -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot 'ensure-sync.ps1') -Instalar
+
+Write-Host ''
 Write-Host 'Concluido!' -ForegroundColor Green
 Write-Host 'Obs.: se o Docker Desktop ou o Tailscale foram instalados agora, reinicie o PC e' -ForegroundColor Green
 Write-Host 'faca login no Tailscale antes de usar o servidor.' -ForegroundColor Green
