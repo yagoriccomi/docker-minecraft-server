@@ -2,7 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](compose.yaml)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-62B47A?logo=minecraft&logoColor=white)](#-o-que-alterar--e-para-quê)
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.3-62B47A?logo=minecraft&logoColor=white)](#-o-que-alterar--e-para-quê)
 [![Syncthing](https://img.shields.io/badge/Sync-Syncthing-0891D1?logo=syncthing&logoColor=white)](https://syncthing.net/)
 [![Tailscale](https://img.shields.io/badge/VPN-Tailscale-242424?logo=tailscale&logoColor=white)](https://tailscale.com/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#)
@@ -155,6 +155,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e agenda o sync e o backup diário (igual à opção `A`). |
 | **A · Agendar sync + backup** | Só agenda as tarefas: **sync a cada 30 min** e **backup diário às 22:00** (guarda 3). Não reinstala nada. |
+| **V · Versão do Minecraft** | Lista as **releases oficiais** direto do manifest da Mojang (snapshots e pré-releases ficam de fora) e troca a `VERSION` do `compose.yaml`. Avisa se a troca é subida (converte o mapa, **irreversível**) ou descida (o mundo convertido **não abre** numa versão anterior), oferece backup antes e pode recriar o servidor na hora. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
@@ -162,7 +163,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **0 · Sair** | Fecha o painel. |
 
 > 🎨 O painel mostra um **cabeçalho ao vivo** — **quem está hospedando** na rede Tailscale (com IP e
-> jogadores online), o estado da replicação e os amigos conectados no sync — e separa as ações
+> jogadores online), o estado da replicação, os amigos conectados no sync e a **versão configurada** — e separa as ações
 > em *Dia a dia*, *Ferramentas*, *Manutenção* e **Zona de risco**. As duas ações destrutivas usam
 > as teclas **`!`** e **`K`** de propósito — ficam longe dos números do dia a dia, para não
 > serem acionadas sem querer.
@@ -300,7 +301,8 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 
 | Variável | Padrão | Para que serve / quando mudar |
 |----------|--------|-------------------------------|
-| `VERSION` | `"1.21.11"` | Versão do Minecraft. **Deve casar com a versão do seu cliente.** Evite `LATEST` num mundo compartilhado (atualiza o mapa e pode quebrar compatibilidade). |
+| `VERSION` | `"26.3"` | Versão do Minecraft (último release oficial, 15/09/2026). **Deve casar com a versão do seu cliente.** Evite `LATEST` num mundo compartilhado (atualiza o mapa e pode quebrar compatibilidade). |
+| `PLAYER_IDLE_TIMEOUT` | `"0"` | Minutos até expulsar um jogador parado. `0` = **nunca expulsa** — necessário para farms de AFK. |
 | `MEMORY` | `"4G"` | RAM da JVM. Ajuste ao seu hardware (deixe folga para SO/Docker). |
 | `ONLINE_MODE` | `"FALSE"` | `FALSE` = permite login offline (contas não-premium/MultiMC). `TRUE` = exige conta Mojang. |
 | `TYPE` | `"VANILLA"` | Tipo do servidor. Troque para `FABRIC`/`PAPER` se for usar mods/plugins. |

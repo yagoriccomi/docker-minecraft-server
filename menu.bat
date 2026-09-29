@@ -41,6 +41,7 @@ if /i "%opcao%"=="S" goto sync_toggle
 if /i "%opcao%"=="X" goto instalar
 if /i "%opcao%"=="A" goto agendar
 if /i "%opcao%"=="U" goto atualizar
+if /i "%opcao%"=="V" goto versao
 if /i "%opcao%"=="P" goto primeiros
 if /i "%opcao%"=="K" goto parar_tudo
 if "%opcao%"=="!" goto importar
@@ -314,6 +315,12 @@ if errorlevel 1 (
 )
 echo.
 pause
+goto menu
+
+:versao
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\set-version.ps1"
+call :log "Seletor de versao do Minecraft aberto"
 goto menu
 
 :importar
