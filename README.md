@@ -2,7 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](compose.yaml)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-62B47A?logo=minecraft&logoColor=white)](#-o-que-alterar--e-para-quê)
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.3-62B47A?logo=minecraft&logoColor=white)](#-o-que-alterar--e-para-quê)
 [![Syncthing](https://img.shields.io/badge/Sync-Syncthing-0891D1?logo=syncthing&logoColor=white)](https://syncthing.net/)
 [![Tailscale](https://img.shields.io/badge/VPN-Tailscale-242424?logo=tailscale&logoColor=white)](https://tailscale.com/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#)
@@ -300,7 +300,8 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 
 | Variável | Padrão | Para que serve / quando mudar |
 |----------|--------|-------------------------------|
-| `VERSION` | `"1.21.11"` | Versão do Minecraft. **Deve casar com a versão do seu cliente.** Evite `LATEST` num mundo compartilhado (atualiza o mapa e pode quebrar compatibilidade). |
+| `VERSION` | `"26.3"` | Versão do Minecraft (último release oficial, 15/09/2026). **Deve casar com a versão do seu cliente.** Evite `LATEST` num mundo compartilhado (atualiza o mapa e pode quebrar compatibilidade). |
+| `PLAYER_IDLE_TIMEOUT` | `"0"` | Minutos até expulsar um jogador parado. `0` = **nunca expulsa** — necessário para farms de AFK. |
 | `MEMORY` | `"4G"` | RAM da JVM. Ajuste ao seu hardware (deixe folga para SO/Docker). |
 | `ONLINE_MODE` | `"FALSE"` | `FALSE` = permite login offline (contas não-premium/MultiMC). `TRUE` = exige conta Mojang. |
 | `TYPE` | `"VANILLA"` | Tipo do servidor. Troque para `FABRIC`/`PAPER` se for usar mods/plugins. |

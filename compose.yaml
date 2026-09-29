@@ -7,8 +7,9 @@
 # Regras do projeto:
 #   - Limite de memória da JVM: 4G (MEMORY: "4G") — host de 16 GB
 #   - Modo offline: ONLINE_MODE: "FALSE" (login via MultiMC)
-#   - VERSION fixada em 1.21.11 para casar com o cliente (NÃO usar LATEST:
-#     atualizaria o mapa e quebraria a compatibilidade)
+#   - VERSION fixada em 26.3 (ultimo release oficial, 15/09/2026) para casar com o
+#     cliente (NÃO usar LATEST: subiria de versao sozinho e quebraria o mapa)
+#   - PLAYER_IDLE_TIMEOUT: "0" — ninguem e expulso por inatividade (farms de AFK)
 name: minecraft-p2p
 
 services:
@@ -22,9 +23,10 @@ services:
     environment:
       EULA: "TRUE"             # Necessário para iniciar o servidor
       TYPE: "VANILLA"
-      VERSION: "1.21.11"       # Deve casar com a versão do cliente
+      VERSION: "26.3"          # Ultimo release oficial — deve casar com o cliente
       MEMORY: "4G"             # Limite mandatório do CLAUDE.md (host 16 GB)
       ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
+      PLAYER_IDLE_TIMEOUT: "0" # 0 = NUNCA expulsa por inatividade (farms de AFK)
       USE_AIKAR_FLAGS: "TRUE"  # Flags de GC otimizadas para o heap de 4 GB
       TZ: "America/Sao_Paulo"
     volumes:
