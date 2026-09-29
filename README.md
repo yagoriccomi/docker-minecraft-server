@@ -155,6 +155,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e agenda o sync e o backup diário (igual à opção `A`). |
 | **A · Agendar sync + backup** | Só agenda as tarefas: **sync a cada 30 min** e **backup diário às 22:00** (guarda 3). Não reinstala nada. |
+| **V · Versão do Minecraft** | Lista as **releases oficiais** direto do manifest da Mojang (snapshots e pré-releases ficam de fora) e troca a `VERSION` do `compose.yaml`. Avisa se a troca é subida (converte o mapa, **irreversível**) ou descida (o mundo convertido **não abre** numa versão anterior), oferece backup antes e pode recriar o servidor na hora. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
@@ -162,7 +163,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **0 · Sair** | Fecha o painel. |
 
 > 🎨 O painel mostra um **cabeçalho ao vivo** — **quem está hospedando** na rede Tailscale (com IP e
-> jogadores online), o estado da replicação e os amigos conectados no sync — e separa as ações
+> jogadores online), o estado da replicação, os amigos conectados no sync e a **versão configurada** — e separa as ações
 > em *Dia a dia*, *Ferramentas*, *Manutenção* e **Zona de risco**. As duas ações destrutivas usam
 > as teclas **`!`** e **`K`** de propósito — ficam longe dos números do dia a dia, para não
 > serem acionadas sem querer.

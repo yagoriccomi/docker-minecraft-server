@@ -7,8 +7,9 @@
 # Regras do projeto:
 #   - Limite de memória da JVM: 4G (MEMORY: "4G") — host de 16 GB
 #   - Modo offline: ONLINE_MODE: "FALSE" (login via MultiMC)
-#   - VERSION fixada em 26.3 (ultimo release oficial, 15/09/2026) para casar com o
-#     cliente (NÃO usar LATEST: subiria de versao sozinho e quebraria o mapa)
+#   - VERSION fixada numa release OFICIAL, casando com o cliente (NÃO usar LATEST:
+#     subiria de versao sozinho e converteria o mapa sem ninguem pedir). Para trocar,
+#     use a opcao [V] do menu.bat, que valida contra o manifest da Mojang.
 #   - PLAYER_IDLE_TIMEOUT: "0" — ninguem e expulso por inatividade (farms de AFK)
 name: minecraft-p2p
 
@@ -23,7 +24,7 @@ services:
     environment:
       EULA: "TRUE"             # Necessário para iniciar o servidor
       TYPE: "VANILLA"
-      VERSION: "26.3"          # Ultimo release oficial — deve casar com o cliente
+      VERSION: "26.3"          # Release oficial — troque pela opcao [V] do menu
       MEMORY: "4G"             # Limite mandatório do CLAUDE.md (host 16 GB)
       ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
       PLAYER_IDLE_TIMEOUT: "0" # 0 = NUNCA expulsa por inatividade (farms de AFK)

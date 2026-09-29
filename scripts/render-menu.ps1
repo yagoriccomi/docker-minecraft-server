@@ -115,11 +115,22 @@ if (-not $docker) {
     $line1 += S 'desligado - ninguem esta hospedando' 'DarkGray'
 }
 
+# ---------------- 5) VERSAO CONFIGURADA (lida do compose.yaml) ----------------
+$cfgVer = '?'
+try {
+    # Select-String casa linha a linha: nao precisa lidar com quebras no padrao.
+    $l = Select-String -LiteralPath (Join-Path $root 'compose.yaml') -Pattern '^\s*VERSION:\s*"?([^"#\s]+)' |
+         Select-Object -First 1
+    if ($l) { $cfgVer = $l.Matches[0].Groups[1].Value }
+} catch { }
+
 $cSync = if ($sync -eq 'no ar') { 'Green' } elseif ($sync -eq 'desligado') { 'Yellow' } else { 'Red' }
 $cFr   = if ($friends -match '^(-|nenhum online|sem API)$') { 'Yellow' } else { 'Green' }
 if ($friends -eq '-') { $cFr = 'DarkGray' }
 $line2 = @( (S '  Sync:     ' 'Gray'), (S (Fit $sync 12) $cSync),
             (S 'Amigos no sync: ' 'Gray'), (S $friends $cFr) )
+$line3 = @( (S '  Versao:   ' 'Gray'), (S (Fit $cfgVer 12) 'White'),
+            (S 'troque na opcao [V]' 'DarkGray') )
 
 # ---------------- CABECALHO ----------------
 # Titulo embutido na borda superior:  ╔══ MINECRAFT P2P ═════...═╗
@@ -130,6 +141,7 @@ P $title 'White'
 P (($bH.ToString() * ($BOXW - 2 - $title.Length)) + $bTR) 'Cyan'; NL
 BoxLine $line1
 BoxLine $line2
+BoxLine $line3
 P ('  ' + $bBL + ($bH.ToString() * $BOXW) + $bBR) 'Cyan'; NL
 if ($local -eq 'running' -and $remoteHosts.Count -gt 0) {
     P '  !! Dois hosts com o servidor no ar: o progresso de UM dos mapas sera perdido.' 'Red'; NL
@@ -160,6 +172,7 @@ P '  MANUTENCAO                         ZONA DE RISCO' 'White'; NL
 Row '[X]' 'Instalar dependencias'        'Cyan'  '[!]' 'Importar mundo (SUBSTITUI)' 'Red'
 Row '[U]' 'Atualizar projeto (git pull)' 'Cyan'  '[K]' 'Remover container do jogo'  'Red'
 Row '[A]' 'Agendar sync + backup'      'Cyan'  ''    ''                           ''
+Row '[V]' 'Versao do Minecraft'         'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL
 P '  ' ; P '[0]' 'DarkGray'; P ' Sair' 'DarkGray'; NL

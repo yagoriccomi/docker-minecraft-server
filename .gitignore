@@ -34,3 +34,6 @@ Desktop.ini
 
 # --- Configuracoes locais do Claude Code ---
 /.claude/
+
+# Copia de seguranca gerada pela opcao [V] ao trocar a versao do Minecraft
+*.bak
