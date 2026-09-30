@@ -11,6 +11,8 @@
 #     subiria de versao sozinho e converteria o mapa sem ninguem pedir). Para trocar,
 #     use a opcao [V] do menu.bat, que valida contra o manifest da Mojang.
 #   - PLAYER_IDLE_TIMEOUT: "0" — ninguem e expulso por inatividade (farms de AFK)
+#   - PAUSE_WHEN_EMPTY_SECONDS: "0" — o servidor NUNCA pausa sem jogadores: os chunks
+#     travados com /forceload (armazem e farm de pigman) seguem rodando com ninguem online
 name: minecraft-p2p
 
 services:
@@ -28,6 +30,7 @@ services:
       MEMORY: "4G"             # Limite mandatório do CLAUDE.md (host 16 GB)
       ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
       PLAYER_IDLE_TIMEOUT: "0" # 0 = NUNCA expulsa por inatividade (farms de AFK)
+      PAUSE_WHEN_EMPTY_SECONDS: "0" # 0 = nunca pausa sem jogadores (chunks com /forceload seguem rodando)
       USE_AIKAR_FLAGS: "TRUE"  # Flags de GC otimizadas para o heap de 4 GB
       TZ: "America/Sao_Paulo"
     volumes:
