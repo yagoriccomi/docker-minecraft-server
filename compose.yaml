@@ -5,7 +5,8 @@
 # sincronização do mapa. Ver a seção "Resiliência" no README.
 #
 # Regras do projeto:
-#   - Limite de memória da JVM: 4G (MEMORY: "4G") — host de 16 GB
+#   - Memoria da JVM: MC_MEMORY no .env (padrao 4G se ausente). Cada PC tem o seu; o .env
+#     NAO vai pro git. Recomendado = 25% da RAM do PC, entre 2G e 32G. Troque pela opcao [M].
 #   - Modo offline: ONLINE_MODE: "FALSE" (login via MultiMC)
 #   - VERSION fixada numa release OFICIAL, casando com o cliente (NÃO usar LATEST:
 #     subiria de versao sozinho e converteria o mapa sem ninguem pedir). Para trocar,
@@ -29,7 +30,7 @@ services:
       EULA: "TRUE"             # Necessário para iniciar o servidor
       TYPE: "VANILLA"
       VERSION: "26.3"          # Release oficial — troque pela opcao [V] do menu
-      MEMORY: "4G"             # Limite mandatório do CLAUDE.md (host 16 GB)
+      MEMORY: "${MC_MEMORY:-4G}"  # RAM da JVM: vem do .env (local, nao versionado). Troque pela opcao [M] do menu.bat
       ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
       PLAYER_IDLE_TIMEOUT: "0" # 0 = NUNCA expulsa por inatividade (farms de AFK)
       PAUSE_WHEN_EMPTY_SECONDS: "0" # 0 = nunca pausa sem jogadores (chunks com /forceload seguem rodando)

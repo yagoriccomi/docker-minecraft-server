@@ -191,6 +191,7 @@ Row '[U]' 'Atualizar projeto (git pull)' 'Cyan'  '[K]' 'Remover container do jog
 Row '[A]' 'Agendar sync/backup/vigia'  'Cyan'  ''    ''                           ''
 Row '[V]' 'Versao do Minecraft'         'Cyan'  ''    ''                           ''
 Row '[D]' 'Dificuldade do mundo'        'Cyan'  ''    ''                           ''
+Row '[M]' 'Memoria do servidor (RAM)'   'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL
 P '  ' ; P '[0]' 'DarkGray'; P ' Sair' 'DarkGray'; NL
