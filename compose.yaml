@@ -13,6 +13,8 @@
 #   - PLAYER_IDLE_TIMEOUT: "0" — ninguem e expulso por inatividade (farms de AFK)
 #   - PAUSE_WHEN_EMPTY_SECONDS: "0" — o servidor NUNCA pausa sem jogadores: os chunks
 #     travados com /forceload (armazem e farm de pigman) seguem rodando com ninguem online
+#   - DIFFICULTY fica FORA daqui de proposito: mora no data/server.properties, que o
+#     Syncthing sincroniza entre os PCs. Troque pela opcao [D] do menu.bat.
 name: minecraft-p2p
 
 services:

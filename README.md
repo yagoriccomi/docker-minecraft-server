@@ -160,6 +160,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e agenda o sync e o backup diário (igual à opção `A`). |
 | **A · Agendar sync/backup/vigia** | Só agenda as tarefas: **sync a cada 30 min**, **backup diário às 22:00** (guarda 3) e o **vigia de rede** (a cada 1 min). Não reinstala nada. |
 | **V · Versão do Minecraft** | Lista as **releases oficiais** direto do manifest da Mojang (snapshots e pré-releases ficam de fora) e troca a `VERSION` do `compose.yaml`. Avisa se a troca é subida (converte o mapa, **irreversível**) ou descida (o mundo convertido **não abre** numa versão anterior), oferece backup antes e pode recriar o servidor na hora. |
+| **D · Dificuldade do mundo** | Escolhe entre Pacífico, Fácil, Normal e Difícil. Grava no `data/server.properties`, que o Syncthing leva para os outros PCs (sem git), e aplica **na hora** se o servidor estiver neste PC. Se estiver em outro PC, mostra o comando para rodar no console de lá — ou vale no próximo início. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
@@ -340,6 +341,7 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 | `VERSION` | `"26.3"` | Versão do Minecraft (último release oficial, 15/09/2026). **Deve casar com a versão do seu cliente.** Evite `LATEST` num mundo compartilhado (atualiza o mapa e pode quebrar compatibilidade). |
 | `PLAYER_IDLE_TIMEOUT` | `"0"` | Minutos até expulsar um jogador parado. `0` = **nunca expulsa** — necessário para farms de AFK. |
 | `PAUSE_WHEN_EMPTY_SECONDS` | `"0"` | Segundos sem jogadores até o servidor **pausar o mundo**. `0` = **nunca pausa**, para os chunks travados com `/forceload` (farms, armazém) seguirem rodando com ninguém online. O padrão do jogo é `60`; volte a ele se quiser poupar o PC que hospeda. |
+| *(dificuldade)* | Difícil | **Não fica no `compose.yaml`**: mora no `data/server.properties`, sincronizado entre os PCs. Troque pela opção **`D`**. Na farm de pigman, o portal gera 1× piglins no Fácil, 2× no Normal e 3× no Difícil. |
 | `MEMORY` | `"4G"` | RAM da JVM. Ajuste ao seu hardware (deixe folga para SO/Docker). |
 | `ONLINE_MODE` | `"FALSE"` | `FALSE` = permite login offline (contas não-premium/MultiMC). `TRUE` = exige conta Mojang. |
 | `TYPE` | `"VANILLA"` | Tipo do servidor. Troque para `FABRIC`/`PAPER` se for usar mods/plugins. |
@@ -400,6 +402,8 @@ Server-Minecraft/
 │   ├── setup-wizard.ps1 # Assistente de primeiros passos e pareamento (opção P)
 │   ├── status.ps1       # Relatório de status (opção 3)
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
+│   ├── set-version.ps1  # Seletor de versão oficial do Minecraft (opção V)
+│   ├── set-difficulty.ps1 # Seletor de dificuldade — grava no server.properties sincronizado (opção D)
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + agenda as tarefas (opção X)
 │   ├── install-tasks.ps1# Agenda sync (30 min) + backup diário 22:00 + vigia de rede (opção A)
 │   ├── sync-world.ps1   # Sync consistente do mapa (tarefa de 30 min e opção 2)
