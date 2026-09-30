@@ -43,6 +43,7 @@ if /i "%opcao%"=="A" goto agendar
 if /i "%opcao%"=="U" goto atualizar
 if /i "%opcao%"=="V" goto versao
 if /i "%opcao%"=="D" goto dificuldade
+if /i "%opcao%"=="M" goto memoria
 if /i "%opcao%"=="P" goto primeiros
 if /i "%opcao%"=="K" goto parar_tudo
 if "%opcao%"=="!" goto importar
@@ -344,6 +345,12 @@ goto menu
 cls
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\set-difficulty.ps1"
 call :log "Seletor de dificuldade aberto"
+goto menu
+
+:memoria
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\set-memory.ps1"
+call :log "Seletor de memoria aberto"
 goto menu
 
 :importar
