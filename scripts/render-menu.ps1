@@ -139,8 +139,15 @@ $cFr   = if ($friends -match '^(-|nenhum online|sem API)$') { 'Yellow' } else { 
 if ($friends -eq '-') { $cFr = 'DarkGray' }
 $line2 = @( (S '  Sync:     ' 'Gray'), (S (Fit $sync 12) $cSync),
             (S 'Amigos no sync: ' 'Gray'), (S $friends $cFr) )
+# Dificuldade: fica no data\server.properties (sincronizado), nao no compose.yaml.
+$dif = '?'
+try {
+    $l = Select-String -LiteralPath (Join-Path $root 'data\server.properties') -Pattern '^difficulty=(\S+)' | Select-Object -First 1
+    if ($l) { $dif = @{ peaceful = 'Pacifico'; easy = 'Facil'; normal = 'Normal'; hard = 'Dificil' }[$l.Matches[0].Groups[1].Value]; if (-not $dif) { $dif = $l.Matches[0].Groups[1].Value } }
+} catch { }
 $line3 = @( (S '  Versao:   ' 'Gray'), (S (Fit $cfgVer 12) 'White'),
-            (S 'troque na opcao [V]' 'DarkGray') )
+            (S 'Dificuldade: ' 'Gray'), (S (Fit $dif 10) 'White'),
+            (S 'troque: [V] [D]' 'DarkGray') )
 
 # ---------------- CABECALHO ----------------
 # Titulo embutido na borda superior:  ╔══ MINECRAFT P2P ═════...═╗
@@ -183,6 +190,7 @@ Row '[X]' 'Instalar dependencias'        'Cyan'  '[!]' 'Importar mundo (SUBSTITU
 Row '[U]' 'Atualizar projeto (git pull)' 'Cyan'  '[K]' 'Remover container do jogo'  'Red'
 Row '[A]' 'Agendar sync/backup/vigia'  'Cyan'  ''    ''                           ''
 Row '[V]' 'Versao do Minecraft'         'Cyan'  ''    ''                           ''
+Row '[D]' 'Dificuldade do mundo'        'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL
 P '  ' ; P '[0]' 'DarkGray'; P ' Sair' 'DarkGray'; NL
