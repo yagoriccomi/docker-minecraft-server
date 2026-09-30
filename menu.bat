@@ -64,21 +64,30 @@ if not errorlevel 1 (
     pause
     goto menu
 )
-:: Regra de host unico: se outro PC ja esta com o servidor no ar, avisa e pede confirmacao.
+:: Regra de host unico: nao sobe se outro PC esta no ar, se este PC esta sem rede ou se o
+:: mapa ainda esta chegando (codigo 2). Codigo 3 = a trava diz que outro PC e o host, mas
+:: ele sumiu da rede: so sobe digitando ASSUMIR.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\check-host.ps1" <nul
-if errorlevel 2 goto iniciar_confirma
+if errorlevel 3 goto iniciar_assumir
+if errorlevel 2 goto iniciar_bloqueado
 goto iniciar_go
-:iniciar_confirma
+:iniciar_bloqueado
+echo   O servidor NAO foi iniciado.
+call :log "Jogar bloqueado pela checagem de host/rede/sync"
+echo.
+pause
+goto menu
+:iniciar_assumir
 set "conf="
-set /p "conf=  Digite SIM para subir mesmo assim (ENTER cancela): "
-if /i not "%conf%"=="SIM" (
-    echo   Cancelado. Entre no servidor do outro host pelo IP acima.
-    call :log "Jogar cancelado: servidor ja ativo em outro host"
+set /p "conf=  Digite ASSUMIR para subir mesmo assim (ENTER cancela): "
+if /i not "%conf%"=="ASSUMIR" (
+    echo   Cancelado. Espere o outro PC voltar para a rede.
+    call :log "Jogar cancelado: trava de outro host (sumiu da rede)"
     echo.
     pause
     goto menu
 )
-call :log "AVISO: servidor iniciado mesmo com outro host ativo (usuario confirmou)"
+call :log "AVISO: usuario ASSUMIU o servidor de um host que sumiu da rede"
 :iniciar_go
 :: Remove container antigo PARADO da v1.0.0 (senao o 'up' falha com nome em uso)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\migrate-legacy.ps1" <nul
@@ -91,10 +100,13 @@ echo Garantindo que a replicacao (Syncthing) esteja no ar...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure-sync.ps1" -Ligar <nul
 echo.
 echo Subindo o servidor de Minecraft...
+:: A trava vai ANTES do 'up': os outros PCs passam a ver este como host na hora.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado ligado -Motivo "opcao 1" <nul
 docker compose -f "%COMPOSE%" up -d
 if errorlevel 1 (
     echo [ERRO] Falha ao iniciar. Detalhes no log: "%LOGFILE%"
     call :log "ERRO: 'up -d' falhou"
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado desligado -Motivo "falha ao subir" <nul
 ) else (
     echo Servidor iniciado!  Minecraft: porta 25565  ^|  Syncthing: porta 8384
     call :log "OK: 'up -d' concluido"
@@ -119,6 +131,8 @@ if errorlevel 1 (
     goto menu
 )
 call :log "OK: 'stop mc'"
+:: Libera a trava do host; vai junto com o save final no sync abaixo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado desligado -Motivo "opcao 2" <nul
 echo.
 echo Enviando o save final para os outros PCs pelo Syncthing...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\sync-world.ps1"
@@ -273,11 +287,13 @@ goto menu
 
 :agendar
 cls
-echo === AGENDAR SYNC DO MAPA + BACKUP DIARIO ===
+echo === AGENDAR SYNC DO MAPA + BACKUP DIARIO + VIGIA DE REDE ===
 echo.
-echo Cria/atualiza duas tarefas no Agendador de Tarefas do Windows:
-echo   MinecraftP2P-Sync   - a cada 30 min congela o mundo e sincroniza o mapa
-echo   MinecraftP2P-Backup - todo dia as 22:00 faz backup .zip (mantem os 3 mais recentes)
+echo Cria/atualiza tres tarefas no Agendador de Tarefas do Windows:
+echo   MinecraftP2P-Sync     - a cada 30 min congela o mundo e sincroniza o mapa
+echo   MinecraftP2P-Backup   - todo dia as 22:00 faz backup .zip (mantem os 3 mais recentes)
+echo   MinecraftP2P-NetGuard - a cada 1 min confere a rede: sem rede por 3 min para o
+echo                           servidor deste PC; quando a rede volta, religa sozinho
 echo Para desfazer: powershell -ExecutionPolicy Bypass -File scripts\install-tasks.ps1 -Remove
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\install-tasks.ps1"
@@ -285,7 +301,7 @@ if errorlevel 1 (
     echo [ERRO] Falha ao agendar as tarefas. Log: "%LOGFILE%"
     call :log "ERRO: agendamento de sync/backup falhou"
 ) else (
-    call :log "OK: sync 30 min + backup diario agendados"
+    call :log "OK: sync 30 min + backup diario + vigia de rede agendados"
 )
 echo.
 pause
@@ -332,6 +348,7 @@ echo Um backup .zip do mundo atual e criado ANTES de qualquer alteracao.
 echo O Minecraft sera parado para liberar os arquivos.
 echo.
 docker stop -t 60 minecraft >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado desligado -Motivo "importar mundo" <nul
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\import-world.ps1"
 if errorlevel 1 (
     echo.
@@ -354,6 +371,7 @@ echo.
 call :has_local_mc
 if errorlevel 1 ( echo Nenhum container do Minecraft neste PC. & echo. & pause & goto menu )
 docker stop -t 60 minecraft >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado desligado -Motivo "opcao K" <nul
 docker rm minecraft
 if errorlevel 1 (
     echo [ERRO] Falha ao encerrar. Log: "%LOGFILE%"

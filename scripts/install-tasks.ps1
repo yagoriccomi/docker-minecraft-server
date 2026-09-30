@@ -1,6 +1,8 @@
 # Agenda (ou remove) as tarefas automaticas do mapa no Agendador de Tarefas do Windows:
 #   MinecraftP2P-Sync   : a cada 30 min (minutos :15 e :45) -> sync-world.ps1
 #   MinecraftP2P-Backup : todo dia as 22:00                 -> backup-world.ps1 -Daily (mantem 3)
+#   MinecraftP2P-NetGuard: a cada 1 min                     -> net-guard.ps1 (para o servidor se a
+#                          rede cair e religa quando ela voltar)
 # Rodam escondidas (sem janela) pelo lancador run-hidden.vbs. Resultados em logs\sync.log e
 # logs\backup.log, e nas opcoes 3 (status) e 4 (diagnostico) do menu.
 # O sync agendado espera os outros PCs no maximo 2 min com o mundo congelado: o que nao
@@ -15,7 +17,7 @@ $vbs = Join-Path $PSScriptRoot 'run-hidden.vbs'
 
 # A antiga MinecraftP2P-AutoSave (so fazia save-all flush) foi substituida pelo sync, que ja salva o mundo.
 $remover = @('MinecraftP2P-AutoSave')
-if ($Remove) { $remover += 'MinecraftP2P-Sync', 'MinecraftP2P-Backup' }
+if ($Remove) { $remover += 'MinecraftP2P-Sync', 'MinecraftP2P-Backup', 'MinecraftP2P-NetGuard' }
 foreach ($t in $remover) {
     if (Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $t -Confirm:$false
@@ -57,3 +59,11 @@ Register-ScheduledTask -TaskName 'MinecraftP2P-Backup' -Force `
     -Settings $config `
     -Description 'Minecraft P2P: backup .zip diario do mapa as 22:00, mantendo os 3 mais recentes. Sem janela.' | Out-Null
 Write-Host "[OK] 'MinecraftP2P-Backup' agendada: todo dia as 22:00 (mantem os 3 mais recentes em backups\)." -ForegroundColor Green
+
+Register-ScheduledTask -TaskName 'MinecraftP2P-NetGuard' -Force `
+    -Action   (New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('"{0}" net-guard.ps1' -f $vbs)) `
+    -Trigger  (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)) `
+    -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+                  -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 15)) `
+    -Description 'Minecraft P2P: a cada 1 min confere a rede. Sem rede por 3 min, para o servidor deste PC; quando a rede volta, religa (se ninguem assumiu). Sem janela.' | Out-Null
+Write-Host "[OK] 'MinecraftP2P-NetGuard' agendada: a cada 1 min confere a rede (para o servidor se ela cair, religa quando voltar)." -ForegroundColor Green
