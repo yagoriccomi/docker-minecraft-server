@@ -32,6 +32,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [🛟 Sync automático, backup diário e recuperação](#-sync-automático-backup-diário-e-recuperação)
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
   - [🔒 Syncthing sempre no ar (guardião)](#-syncthing-sempre-no-ar-guardião)
+  - [📡 Vigia de rede e trava do host](#-vigia-de-rede-e-trava-do-host)
   - [⬆️ Atualizando da v1.0.0](#️-atualizando-da-v100)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
 - [🧾 Captura de erros / diagnóstico](#-captura-de-erros--diagnóstico)
@@ -48,6 +49,9 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 - 🖥️ **Painel `menu.bat`** — interface de console para iniciar, parar, status, logs, console RCON e backup.
 - 💾 **Backup em `.zip`** — **automático todo dia às 22:00** (guarda os 3 mais recentes) ou manual em um
   clique, sem precisar parar o servidor.
+- 🛑 **Anti split-brain** — o servidor **não sobe** se outro PC já está com ele (mesmo que esse PC
+  tenha caído da rede), e um **vigia de rede** desliga o servidor do host que ficou sem internet e
+  religa quando a rede volta.
 - 🧾 **Captura de erros** — cada ação registra sucesso/falha em `logs/menu.log`.
 - 📦 **Portável** — os scripts detectam a própria pasta; funciona em **qualquer PC / qualquer letra de disco**.
 
@@ -143,7 +147,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 
 | Opção | O que faz |
 |-------|-----------|
-| **1 · Jogar** | Antes de subir, **verifica se outro PC já está hospedando** — se estiver, mostra quem, o IP e os jogadores, e pede confirmação (`SIM`). Depois garante o Syncthing no ar, limpa conflitos e sobe o servidor. |
+| **1 · Jogar** | Antes de subir, confere a rede deste PC, **se outro PC já está hospedando** (mostra quem, o IP e os jogadores) e se o mapa já chegou todo — em qualquer desses casos **não sobe**. Se a [trava do host](#-vigia-de-rede-e-trava-do-host) diz que outro PC é o host mas ele sumiu da rede, só sobe digitando `ASSUMIR`. Depois garante o Syncthing no ar, limpa conflitos, grava a trava e sobe o servidor. |
 | **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**), **envia o save final** pelo Syncthing e mostra quanto falta para cada PC conectado. |
 | **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** de cada PC conectado (pelo nome). |
 | **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **se o servidor já está ativo em outro host do Tailscale** (com IP) e o estado das tarefas de sync/backup. |
@@ -154,7 +158,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **S · Syncthing: ligar/desligar** | O Syncthing é mantido **sempre no ar** por um guardião. Esta é a **única** forma de desligá-lo de propósito (pede para digitar `DESLIGAR`). Religa pela mesma opção — ou automaticamente ao **Jogar**. |
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e agenda o sync e o backup diário (igual à opção `A`). |
-| **A · Agendar sync + backup** | Só agenda as tarefas: **sync a cada 30 min** e **backup diário às 22:00** (guarda 3). Não reinstala nada. |
+| **A · Agendar sync/backup/vigia** | Só agenda as tarefas: **sync a cada 30 min**, **backup diário às 22:00** (guarda 3) e o **vigia de rede** (a cada 1 min). Não reinstala nada. |
 | **V · Versão do Minecraft** | Lista as **releases oficiais** direto do manifest da Mojang (snapshots e pré-releases ficam de fora) e troca a `VERSION` do `compose.yaml`. Avisa se a troca é subida (converte o mapa, **irreversível**) ou descida (o mundo convertido **não abre** numa versão anterior), oferece backup antes e pode recriar o servidor na hora. |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
@@ -197,17 +201,19 @@ Traga um mundo de outra instalação (ex.: seu single-player do MultiMC/`.minecr
 - **Host ativo termina de jogar:** opção **2 (Parar / passar a vez)**. Ela envia o save final e espera os
   PCs conectados receberem tudo. Se algum aparecer como `offline`, deixe o PC ligado até ele conectar
   (a opção **3** mostra quanto cada PC já tem) **antes de desligar**.
-- **O outro só então** dá **[1] Jogar** no PC dele. Nunca dois rodando o Minecraft ao mesmo tempo.
+- **O outro só então** dá **[1] Jogar** no PC dele. Nunca dois rodando o Minecraft ao mesmo tempo —
+  o menu garante isso: enquanto a trava do host estiver com o outro PC, a opção **1** não sobe.
 
 ### 🛟 Sync automático, backup diário e recuperação
 
-A opção **`A`** (ou a **`X`**) cria duas tarefas no Agendador de Tarefas do Windows. Elas rodam
+A opção **`A`** (ou a **`X`**) cria três tarefas no Agendador de Tarefas do Windows. Elas rodam
 escondidas (sem janela) e foram feitas para o servidor **ligado 24/7**:
 
 | Tarefa | Quando | O que faz |
 |--------|--------|-----------|
 | `MinecraftP2P-Sync` | a cada 30 min (minutos :15 e :45) | Congela o mundo, sincroniza o mapa com os outros PCs e descongela. |
 | `MinecraftP2P-Backup` | todo dia às 22:00 | Gera `backups/world_diario_AAAAMMDD_HHmmss.zip` e guarda só os **3 mais recentes**. |
+| `MinecraftP2P-NetGuard` | a cada 1 min | [Vigia de rede](#-vigia-de-rede-e-trava-do-host): para o servidor se a rede cair e religa quando ela volta. |
 
 - **Por que "congelar" o mundo?** Com o servidor no ar, o Minecraft grava os arquivos de região o tempo
   todo, e copiar ou sincronizar nessa hora pega arquivos pela metade. Por isso cada ciclo faz `save-off` +
@@ -284,6 +290,36 @@ Syncthing é tratada como acidente e revertida. Tudo o que o guardião faz fica 
 > 💡 Deixe **desligada** a opção do Docker *"Open Docker Dashboard when Docker Desktop starts"*
 > (Settings → General): quando o guardião abrir o Docker, ele sobe só na bandeja.
 
+### 📡 Vigia de rede e trava do host
+Procurar o servidor na porta 25565 só enxerga quem está **online**. Se o host cai da rede com o
+servidor ligado, ele some da varredura — e o outro PC acharia que está livre para subir um segundo
+servidor em cima de um mapa desatualizado. Duas peças fecham esse buraco:
+
+**Trava do host — `data/host-ativo.json`.** Viaja pelo Syncthing junto com o mapa e diz **qual PC
+está com o servidor**. A opção **1** grava `ligado`; as opções **2**, **K** e **!** gravam `desligado`.
+Enquanto a trava estiver `ligado` (ou `pausado`) com **outro** PC, a opção **1** não sobe, mesmo com
+esse PC fora da rede — o painel mostra *"com Fulano, que SUMIU da rede"*. Se ele nunca mais voltar
+(PC quebrado, por exemplo), dá para digitar `ASSUMIR`: o que foi jogado lá depois do último sync vira
+conflito e o seu mapa prevalece.
+
+**Vigia de rede — tarefa `MinecraftP2P-NetGuard` (a cada 1 min, criada pela opção `A`).**
+"Com rede" = Tailscale conectado **e** internet respondendo (ping em `1.1.1.1`/`8.8.8.8`, ou HTTPS se a
+rede bloquear ping).
+
+| Situação encontrada | O que o vigia faz |
+|---|---|
+| Servidor rodando aqui e **3 checagens seguidas sem rede** (~3 min) | Avisa no chat, **para o servidor** (salva tudo) e marca a trava como `pausado` |
+| Foi o vigia que parou e a **rede voltou** (2 checagens seguidas) | Espera o Syncthing trocar as novidades e **religa o servidor** — se ninguém assumiu e nenhum outro PC estiver no ar |
+| Servidor rodando aqui, mas a trava diz que **outro PC é o host** | Para o daqui (ex.: o outro assumiu e o Docker religou este no boot) |
+| Servidor rodando aqui **sem trava** | Grava a trava como `ligado` neste PC |
+
+Parar pelo menu (opções **2**, **K** ou **!**) cancela a volta automática. Tudo o que o vigia faz fica
+em `logs/net-guard.log`.
+
+> ⚠️ **Antivírus:** o Kaspersky bloqueia um `.ps1` que junte o *Server List Ping* do Minecraft (socket
+> com bytes crus) com a leitura da API key do Syncthing + POST. Por isso a trava fica num arquivo
+> separado (`lib-lease.ps1`) — não junte os dois de volta.
+
 ### ⬆️ Atualizando da v1.0.0
 A v1.1.0 separou o jogo e a replicação em dois projetos Docker. Os containers criados pela v1.0.0
 ficam no projeto antigo — então, depois do `[U]`, **basta abrir o `menu.bat`**: ele migra sozinho.
@@ -326,7 +362,7 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 - **Guardião do revezamento (Tailscale)** — o detector varre os hosts da sua rede Tailscale e, se
   encontrar o Minecraft **já ativo em outro host** (porta 25565), avisa **em qual host e com qual IP**
   conectar, alertando que subir o seu próprio servidor causaria *split-brain* (perda do progresso de
-  um dos mapas). É só um aviso — você decide. E quando outro host está ativo, o seu Minecraft parado
+  um dos mapas). No diagnóstico é só um aviso; na opção **1** é bloqueio. E quando outro host está ativo, o seu Minecraft parado
   passa a ser reconhecido como **"STANDBY"** (não como erro).
 - **Healthcheck no Docker** — tanto o Minecraft (imagem `itzg`) quanto o Syncthing têm *healthcheck*;
   o Docker marca o contêiner como `unhealthy` automaticamente quando ele para de responder.
@@ -353,15 +389,18 @@ Server-Minecraft/
 ├── .gitignore           # Ignora dados, segredos, backups e logs
 ├── scripts/
 │   ├── render-menu.ps1  # Desenha o painel (cabeçalho ao vivo + duas colunas)
-│   ├── lib-hosts.ps1    # Descobre quem hospeda no Tailscale + ping do Minecraft
-│   ├── check-host.ps1   # Trava da opção 1: avisa se outro PC já está no ar
+│   ├── lib-hosts.ps1    # Descobre quem hospeda no Tailscale + ping do Minecraft + "este PC tem rede?"
+│   ├── lib-lease.ps1    # Trava do host (data/host-ativo.json) — separada por causa do antivírus
+│   ├── check-host.ps1   # Checagem da opção 1: não sobe se outro PC é o host, sem rede ou mapa chegando
+│   ├── host-lease.ps1   # Grava a trava do host pelo menu (ligado/desligado)
+│   ├── net-guard.ps1    # Vigia de rede: para o servidor sem rede e religa na volta (tarefa de 1 min)
 │   ├── show-logs.ps1    # Logs locais ou do host remoto via Syncthing (opção 6)
 │   ├── migrate-legacy.ps1 # Migra containers da v1.0.0 para os stacks separados
 │   ├── setup-wizard.ps1 # Assistente de primeiros passos e pareamento (opção P)
 │   ├── status.ps1       # Relatório de status (opção 3)
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + agenda as tarefas (opção X)
-│   ├── install-tasks.ps1# Agenda sync (30 min) + backup diário 22:00 (opção A)
+│   ├── install-tasks.ps1# Agenda sync (30 min) + backup diário 22:00 + vigia de rede (opção A)
 │   ├── sync-world.ps1   # Sync consistente do mapa (tarefa de 30 min e opção 2)
 │   ├── backup-world.ps1 # Backup .zip do mapa (diário guarda 3; manual pela opção 5)
 │   ├── common.ps1       # Funções comuns: congelar o mundo, trava sync/backup, API do Syncthing
@@ -371,7 +410,7 @@ Server-Minecraft/
 │   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
 │
 │  --- gerados localmente, NÃO versionados (.gitignore) ---
-├── data/                # Mundo + config do servidor (o mapa NÃO vai pro GitHub)
+├── data/                # Mundo + config do servidor + trava host-ativo.json (o mapa NÃO vai pro GitHub)
 ├── syncthing_config/    # Chaves/config do Syncthing (privado, por máquina)
 ├── backups/             # Backups .zip do mapa
 └── logs/                # Logs do menu.bat, do sync e do backup

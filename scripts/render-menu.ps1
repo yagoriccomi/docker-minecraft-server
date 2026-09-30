@@ -5,7 +5,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 $root = Split-Path $PSScriptRoot -Parent
-. (Join-Path $PSScriptRoot 'lib-hosts.ps1')
+. (Join-Path $PSScriptRoot 'lib-lease.ps1')   # inclui o lib-hosts.ps1
 
 # --- caracteres de caixa por codigo (evita problema de encoding no .ps1) ---
 # NOTA: prefixo "b" de proposito - $H colidiria com o $h de outras variaveis.
@@ -93,6 +93,9 @@ function PlayersTxt($pl) {
     if ($n.Count) { return "  $($pl.Online)/$($pl.Max): " + ($n -join ', ') }
     return "  $($pl.Online)/$($pl.Max) jogando"
 }
+$lease   = Get-HostLease
+$pausado = $false    # parado pelo vigia de rede, esperando a rede voltar
+try { $pausado = [bool](Get-Content (Join-Path $root 'logs\net-guard.json') -Raw | ConvertFrom-Json).parado } catch { }
 $line1 = @( (S '  Servidor: ' 'Gray') )
 if (-not $docker) {
     $line1 += S 'Docker nao esta rodando (abra o Docker Desktop)' 'Red'
@@ -108,6 +111,13 @@ if (-not $docker) {
     if ($net.SelfIP) { $line1 += S "  $($net.SelfIP):25565" 'Cyan' }
 } elseif ($local -eq 'restarting') {
     $line1 += S 'CRASH neste PC - veja a opcao 4' 'Red'
+} elseif (Test-LeaseOther $lease) {
+    # Ninguem responde na porta 25565, mas a trava diz que outro PC e o host: ele caiu da rede.
+    $line1 += S "com $($lease.nome), que SUMIU da rede" 'Yellow'
+    $line1 += S '  (espere ele voltar)' 'DarkGray'
+} elseif ($pausado) {
+    $line1 += S 'PAUSADO neste PC (sem rede)' 'Yellow'
+    $line1 += S '  - volta sozinho com a rede' 'DarkGray'
 } elseif (-not $net.Ok) {
     $line1 += S 'desligado neste PC' 'DarkGray'
     $line1 += S '  (Tailscale offline: rede nao verificada)' 'Yellow'
@@ -171,7 +181,7 @@ NL
 P '  MANUTENCAO                         ZONA DE RISCO' 'White'; NL
 Row '[X]' 'Instalar dependencias'        'Cyan'  '[!]' 'Importar mundo (SUBSTITUI)' 'Red'
 Row '[U]' 'Atualizar projeto (git pull)' 'Cyan'  '[K]' 'Remover container do jogo'  'Red'
-Row '[A]' 'Agendar sync + backup'      'Cyan'  ''    ''                           ''
+Row '[A]' 'Agendar sync/backup/vigia'  'Cyan'  ''    ''                           ''
 Row '[V]' 'Versao do Minecraft'         'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL

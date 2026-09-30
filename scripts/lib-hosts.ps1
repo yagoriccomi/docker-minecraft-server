@@ -1,5 +1,6 @@
 # Funcoes compartilhadas: descobrir QUAL host da rede Tailscale esta com o servidor
-# de Minecraft no ar e consultar quantos jogadores estao conectados.
+# de Minecraft no ar, consultar quantos jogadores estao conectados e saber se ESTE PC
+# esta com rede. A trava do host (data\host-ativo.json) fica em lib-lease.ps1.
 # Uso: . "$PSScriptRoot\lib-hosts.ps1"   (dot-source)
 
 function Get-TsExe {
@@ -13,6 +14,7 @@ function Get-TsExe {
 # Retorna um objeto { Ok; SelfName; SelfIP; Hosts = @({Nome;IP}) }.
 # Ok = $false quando o Tailscale nao esta disponivel (resultado desconhecido).
 function Find-MinecraftHosts([int]$deadlineMs = 500) {
+    $ErrorActionPreference = 'SilentlyContinue'   # aviso do tailscale no stderr nao pode virar excecao (quem chama pode usar Stop)
     $r = [pscustomobject]@{ Ok = $false; SelfName = ''; SelfIP = ''; Hosts = @() }
     $ts = Get-TsExe
     if (-not $ts) { return $r }
@@ -111,4 +113,27 @@ function Get-McPlayers([string]$ip, [int]$port = 25565, [int]$timeoutMs = 800) {
             Nomes  = @($j.players.sample | Where-Object { $_ -and $_.name } | ForEach-Object { $_.name })
         }
     } catch { return $null } finally { $c.Close() }
+}
+
+# ESTE PC esta com rede? = Tailscale conectado E internet respondendo (ping em 1.1.1.1 /
+# 8.8.8.8; se a rede bloquear ping, tenta HTTPS nos mesmos IPs). Sem isso ninguem de fora
+# entra no servidor e o mapa nao sincroniza.
+function Test-NetOnline {
+    $ErrorActionPreference = 'SilentlyContinue'
+    $ts = Get-TsExe
+    if (-not $ts) { return $false }
+    $st = & $ts status --json 2>$null | ConvertFrom-Json
+    if (-not $st -or $st.BackendState -ne 'Running') { return $false }
+    $ips = '1.1.1.1', '8.8.8.8'
+    foreach ($ip in $ips) {
+        try { if ((New-Object System.Net.NetworkInformation.Ping).Send($ip, 1500).Status -eq 'Success') { return $true } } catch { }
+    }
+    foreach ($ip in $ips) {
+        $c = New-Object System.Net.Sockets.TcpClient
+        try {
+            $a = $c.BeginConnect($ip, 443, $null, $null)
+            if ($a.AsyncWaitHandle.WaitOne(2000) -and $c.Connected) { return $true }
+        } catch { } finally { $c.Close() }
+    }
+    return $false
 }
