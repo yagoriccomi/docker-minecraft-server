@@ -339,6 +339,7 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 |----------|--------|-------------------------------|
 | `VERSION` | `"26.3"` | Versão do Minecraft (último release oficial, 15/09/2026). **Deve casar com a versão do seu cliente.** Evite `LATEST` num mundo compartilhado (atualiza o mapa e pode quebrar compatibilidade). |
 | `PLAYER_IDLE_TIMEOUT` | `"0"` | Minutos até expulsar um jogador parado. `0` = **nunca expulsa** — necessário para farms de AFK. |
+| `PAUSE_WHEN_EMPTY_SECONDS` | `"0"` | Segundos sem jogadores até o servidor **pausar o mundo**. `0` = **nunca pausa**, para os chunks travados com `/forceload` (farms, armazém) seguirem rodando com ninguém online. O padrão do jogo é `60`; volte a ele se quiser poupar o PC que hospeda. |
 | `MEMORY` | `"4G"` | RAM da JVM. Ajuste ao seu hardware (deixe folga para SO/Docker). |
 | `ONLINE_MODE` | `"FALSE"` | `FALSE` = permite login offline (contas não-premium/MultiMC). `TRUE` = exige conta Mojang. |
 | `TYPE` | `"VANILLA"` | Tipo do servidor. Troque para `FABRIC`/`PAPER` se for usar mods/plugins. |
