@@ -161,6 +161,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **A · Agendar sync/backup/vigia** | Só agenda as tarefas: **sync a cada 30 min**, **backup diário às 22:00** (guarda 3) e o **vigia de rede** (a cada 1 min). Não reinstala nada. |
 | **V · Versão do Minecraft** | Lista as **releases oficiais** direto do manifest da Mojang (snapshots e pré-releases ficam de fora) e troca a `VERSION` do `compose.yaml`. Avisa se a troca é subida (converte o mapa, **irreversível**) ou descida (o mundo convertido **não abre** numa versão anterior), oferece backup antes e pode recriar o servidor na hora. |
 | **D · Dificuldade do mundo** | Escolhe entre Pacífico, Fácil, Normal e Difícil. Grava no `data/server.properties`, que o Syncthing leva para os outros PCs (sem git), e aplica **na hora** se o servidor estiver neste PC. Se estiver em outro PC, mostra o comando para rodar no console de lá — ou vale no próximo início. |
+| **M · Memória do servidor** | Detecta a RAM do PC e sugere 25% dela (piso 2 GB, teto 32 GB: PC de 8 GB → 2 GB, 64 GB → 16 GB, 128 GB+ → 32 GB). Grava `MC_MEMORY` no `.env` local — cada PC tem o seu valor. Com o servidor no ar, oferece recriar o container para aplicar (a opção `9` **não** aplica, pois `docker restart` não relê o `.env`). |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
@@ -342,7 +343,7 @@ Quase tudo é configurado em **`compose.yaml`**, na seção `environment` do ser
 | `PLAYER_IDLE_TIMEOUT` | `"0"` | Minutos até expulsar um jogador parado. `0` = **nunca expulsa** — necessário para farms de AFK. |
 | `PAUSE_WHEN_EMPTY_SECONDS` | `"0"` | Segundos sem jogadores até o servidor **pausar o mundo**. `0` = **nunca pausa**, para os chunks travados com `/forceload` (farms, armazém) seguirem rodando com ninguém online. O padrão do jogo é `60`; volte a ele se quiser poupar o PC que hospeda. |
 | *(dificuldade)* | Difícil | **Não fica no `compose.yaml`**: mora no `data/server.properties`, sincronizado entre os PCs. Troque pela opção **`D`**. Na farm de pigman, o portal gera 1× piglins no Fácil, 2× no Normal e 3× no Difícil. |
-| `MEMORY` | `"4G"` | RAM da JVM. Ajuste ao seu hardware (deixe folga para SO/Docker). |
+| `MEMORY` | `"${MC_MEMORY:-4G}"` | RAM da JVM. **Não edite aqui:** vem de `MC_MEMORY` no `.env` deste PC (local, fora do git; padrão `4G` se não existir). Troque pela opção **`M`**, que recomenda **25% da RAM do PC** (mín. 2 GB, máx. 32 GB) e recusa mais de 50%. |
 | `ONLINE_MODE` | `"FALSE"` | `FALSE` = permite login offline (contas não-premium/MultiMC). `TRUE` = exige conta Mojang. |
 | `TYPE` | `"VANILLA"` | Tipo do servidor. Troque para `FABRIC`/`PAPER` se for usar mods/plugins. |
 | `USE_AIKAR_FLAGS` | `"TRUE"` | Flags de GC otimizadas — melhora a performance. Deixe ligado. |
