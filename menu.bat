@@ -44,6 +44,7 @@ if /i "%opcao%"=="U" goto atualizar
 if /i "%opcao%"=="V" goto versao
 if /i "%opcao%"=="D" goto dificuldade
 if /i "%opcao%"=="M" goto memoria
+if /i "%opcao%"=="B" goto bot
 if /i "%opcao%"=="P" goto primeiros
 if /i "%opcao%"=="K" goto parar_tudo
 if "%opcao%"=="!" goto importar
@@ -112,6 +113,9 @@ if errorlevel 1 (
 ) else (
     echo Servidor iniciado!  Minecraft: porta 25565  ^|  Syncthing: porta 8384
     call :log "OK: 'up -d' concluido"
+    echo.
+    echo Bot AFK: liga so se a versao foi aprovada pelo teste ^(opcao B^)...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1" -Acao subir -Auto <nul
 )
 echo.
 pause
@@ -123,6 +127,8 @@ echo === PARANDO O MINECRAFT (encerramento limpo) ===
 echo.
 call :has_local_mc
 if errorlevel 1 ( echo Nenhum servidor de Minecraft neste PC para parar. & echo. & pause & goto menu )
+:: O bot AFK sai antes: ele so pode existir no PC que hospeda.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1" -Acao parar <nul
 :: Ate 60 s para o servidor salvar o mundo e fechar limpo.
 docker stop -t 60 minecraft
 if errorlevel 1 (
@@ -347,6 +353,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\set-difficul
 call :log "Seletor de dificuldade aberto"
 goto menu
 
+:bot
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1"
+call :log "Tela do bot AFK aberta"
+goto menu
+
 :memoria
 cls
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\set-memory.ps1"
@@ -384,6 +396,8 @@ echo (compose.sync.yaml) e continua replicando o mapa.
 echo.
 call :has_local_mc
 if errorlevel 1 ( echo Nenhum container do Minecraft neste PC. & echo. & pause & goto menu )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1" -Acao parar <nul
+docker rm minecraft-bot minecraft-viaproxy >nul 2>&1
 docker stop -t 60 minecraft >nul 2>&1
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado desligado -Motivo "opcao K" <nul
 docker rm minecraft

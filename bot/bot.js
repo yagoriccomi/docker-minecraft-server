@@ -1,0 +1,117 @@
+// Bot AFK: entra no servidor como jogador e fica parado no ponto de cada farm de bots.json,
+// para o servidor rodar o que so funciona com jogador por perto (spawn natural de mobs etc.).
+//
+// Regras (definidas pelo dono do servidor):
+//   - so roda no PC que esta hospedando: sobe e desce junto com o Minecraft (opcao [B] do menu);
+//   - modo aventura (parado nao gasta fome; os pontos sao seguros), spawnpoint no ponto exato;
+//   - nome com prefixo AFK_ e time "bots" com rotulo [BOT], para ninguem confundir com jogador;
+//   - so loga se o verificador (scripts/check-bot.ps1) aprovou a versao; o modo vem de runtime.json.
+const path = require('path')
+const fs = require('fs')
+const mineflayer = require('mineflayer')
+const { lerModo, opcoesDeVersao, senhaRcon, rcon, protegerMovimento } = require('./lib')
+
+const HOST = process.env.BOT_HOST || 'mc'
+const PORT = Number(process.env.BOT_PORT || 25565)
+const PROXY_HOST = process.env.PROXY_HOST || 'viaproxy'   // modo "via proxy" (ViaProxy traduz a versao)
+const PROXY_PORT = Number(process.env.PROXY_PORT || 25568)
+const RCON_PORT = Number(process.env.RCON_PORT || 25575)
+const PROPS = process.env.SERVER_PROPERTIES || '/mcdata/server.properties'
+const VERIFICAR_S = 60          // de quanto em quanto tempo confere posicao e modo de jogo
+const TOLERANCIA = 1.5          // blocos de folga antes de devolver o bot ao ponto
+
+const bots = JSON.parse(fs.readFileSync(path.join(__dirname, 'bots.json'), 'utf8'))
+const modo = lerModo(path.join(__dirname, 'runtime.json'))
+const DESTINO = modo.via === 'proxy' ? { host: PROXY_HOST, port: PROXY_PORT } : { host: HOST, port: PORT }
+const log = (nome, msg) => console.log(`[${new Date().toISOString()}] ${nome}: ${msg}`)
+
+async function comandos (lista) {
+  return rcon(HOST, RCON_PORT, senhaRcon(PROPS), lista)
+}
+
+// Modo de jogo por bot (bots.json -> "modo"); sem o campo, aventura.
+const modoDe = b => b.modo || 'adventure'
+
+async function configurar (b) {
+  const { nome, x, y, z } = b
+  await comandos([
+    'team add bots',
+    'team modify bots color gray',
+    'team modify bots prefix "[BOT] "',
+    `team join bots ${nome}`,
+    `gamemode ${modoDe(b)} ${nome}`,
+    `spawnpoint ${nome} ${x} ${y} ${z}`,
+    `tp ${nome} ${x + 0.5} ${y} ${z + 0.5}`
+  ])
+  log(nome, `configurado: modo ${modoDe(b)}, time bots, spawnpoint e posicao em ${x} ${y} ${z}`)
+}
+
+// Aviso para quem entra: cada jogador que loga recebe (so ele, via tellraw) uma mensagem dizendo
+// que ha um bot e onde. Um aviso por entrada, mesmo com varios bots online (um so lista todos).
+const avisados = new Map()   // nome -> horario do ultimo aviso
+const online = new Set()     // bots conectados agora
+function avisoDe (b) {
+  return [
+    { text: '[BOT] ', color: 'gray' },
+    { text: b.nome, color: 'yellow' },
+    { text: ` está na ${b.farm || 'farm'} (${b.x}, ${b.y}, ${b.z}) mantendo a farm rodando. É um bot, não um jogador.`, color: 'gray' }
+  ]
+}
+async function avisar (jogador) {
+  if (jogador.startsWith('AFK_')) return
+  const agora = Date.now()
+  if (agora - (avisados.get(jogador) || 0) < 30000) return
+  avisados.set(jogador, agora)
+  const linhas = bots.filter(b => online.has(b.nome)).map(b => `tellraw ${jogador} ${JSON.stringify(['', ...avisoDe(b)])}`)
+  if (!linhas.length) return
+  // Espera o cliente terminar de carregar o mundo, senao a mensagem passa despercebida.
+  setTimeout(async () => {
+    try { await comandos(linhas); log('aviso', `avisado: ${jogador}`) } catch (e) { log('aviso', 'falha ao avisar: ' + e.message) }
+  }, 4000)
+}
+
+function iniciar (b, espera = 10) {
+  let timer = null
+  let bot
+  try {
+    bot = mineflayer.createBot({ ...DESTINO, username: b.nome, auth: 'offline', physicsEnabled: false, ...opcoesDeVersao(modo) })
+    protegerMovimento(bot, m => log(b.nome, m))
+  } catch (e) {
+    log(b.nome, 'nao foi possivel criar o bot: ' + e.message)
+    return setTimeout(() => iniciar(b, Math.min(espera * 2, 300)), espera * 1000)
+  }
+
+  bot.once('spawn', async () => {
+    log(b.nome, 'entrou no servidor')
+    espera = 10
+    online.add(b.nome)
+    // Quem ja estava online quando o bot entrou dispara 'playerJoined' tambem: ignora os 5 s iniciais.
+    const desde = Date.now()
+    bot.on('playerJoined', p => { if (Date.now() - desde > 5000 && p && p.username) avisar(p.username) })
+    try { await configurar(b) } catch (e) { log(b.nome, 'falha ao configurar pelo RCON: ' + e.message) }
+    timer = setInterval(async () => {
+      const p = bot.entity && bot.entity.position
+      if (!p) return
+      const longe = Math.abs(p.x - (b.x + 0.5)) > TOLERANCIA || Math.abs(p.z - (b.z + 0.5)) > TOLERANCIA || Math.abs(p.y - b.y) > TOLERANCIA
+      if (longe || bot.game.gameMode !== modoDe(b)) {
+        log(b.nome, `fora do lugar (${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}, ${bot.game.gameMode}); corrigindo`)
+        try { await configurar(b) } catch (e) { log(b.nome, 'falha ao corrigir: ' + e.message) }
+      }
+    }, VERIFICAR_S * 1000)
+  })
+
+  // Morreu (nao deveria, os pontos sao seguros): renasce no spawnpoint, que e o proprio ponto.
+  bot.on('death', () => { log(b.nome, 'morreu; renascendo no ponto'); setTimeout(() => bot.respawn && bot.respawn(), 2000) })
+  bot.on('kicked', motivo => log(b.nome, 'expulso: ' + (typeof motivo === 'string' ? motivo : JSON.stringify(motivo))))
+  bot.on('error', e => log(b.nome, 'erro: ' + e.message))
+  bot.on('end', motivo => {
+    clearInterval(timer)
+    online.delete(b.nome)
+    log(b.nome, `desconectado (${motivo}); tentando de novo em ${espera} s`)
+    setTimeout(() => iniciar(b, Math.min(espera * 2, 300)), espera * 1000)
+  })
+}
+
+const descr = !modo.dados ? 'automatico' : modo.via === 'proxy' ? `entra como ${modo.dados} pelo ViaProxy ${modo.viaproxy || ''}` : modo.protocolo ? `dados ${modo.dados} com protocolo ${modo.protocolo}` : `exato ${modo.dados}`
+log('bot', `modo de versao: ${descr} -> ${DESTINO.host}:${DESTINO.port}`)
+bots.forEach(b => iniciar(b))

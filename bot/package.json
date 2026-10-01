@@ -1,0 +1,9 @@
+{
+  "name": "minecraft-p2p-bot",
+  "private": true,
+  "description": "Bot AFK que segura farms que dependem de jogador por perto (opcao [B] do menu).",
+  "main": "bot.js",
+  "dependencies": {
+    "mineflayer": "4.39.0"
+  }
+}

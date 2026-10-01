@@ -165,6 +165,7 @@ if ($descendo) {
 Write-Host ''
 Write-Host ('     Todos os jogadores precisam ter a {0} no MultiMC, senao ninguem entra.' -f $novo) -ForegroundColor Yellow
 Write-Host '     Avise os outros hosts: eles tambem precisam dar [U] para pegar a troca.' -ForegroundColor Yellow
+Write-Host ('     Bot AFK: ele NAO loga na {0} ate passar no teste da opcao [B] -> 1.' -f $novo) -ForegroundColor Yellow
 Write-Host ''
 
 $conf = Read-Host '  Digite SIM para continuar (ENTER cancela)'

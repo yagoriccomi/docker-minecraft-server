@@ -35,6 +35,9 @@ function Stop-Local([string]$Aviso) {
     Start-Sleep -Seconds 10
     $null = Enter-WorldLock -TimeoutMin 5
     try {
+        # O bot AFK sai junto: ele so pode existir no PC que hospeda (sem erro se nao existir).
+        Invoke-Docker 'stop -t 10 minecraft-bot' 60 | Out-Null
+        Invoke-Docker 'stop -t 10 minecraft-viaproxy' 60 | Out-Null
         $r = Invoke-Docker "stop -t 60 $mcName" 120
         if ($r.Code -ne 0) { throw ('docker stop falhou: {0} {1}' -f $r.Err, $r.Out) }
     } finally { Exit-WorldLock }

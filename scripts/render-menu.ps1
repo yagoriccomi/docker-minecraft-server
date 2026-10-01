@@ -89,8 +89,12 @@ if ($sync -eq 'no ar' -and (Test-Path $cfgPath)) {
 # ---------------- 4) QUEM ESTA HOSPEDANDO ----------------
 function PlayersTxt($pl) {
     if (-not $pl) { return '' }
+    # Nomes com prefixo AFK_ sao o bot AFK (opcao [B]): contam a parte, nao como jogador.
     $n = @($pl.Nomes | Where-Object { $_ })
-    if ($n.Count) { return "  $($pl.Online)/$($pl.Max): " + ($n -join ', ') }
+    $bots = @($n | Where-Object { $_ -like 'AFK_*' }); $jog = @($n | Where-Object { $_ -notlike 'AFK_*' })
+    $txtBots = if ($bots.Count) { " + $($bots.Count) bot" } else { '' }
+    if ($jog.Count) { return "  $($jog.Count)/$($pl.Max): " + ($jog -join ', ') + $txtBots }
+    if ($n.Count)   { return "  0 jogando$txtBots" }
     return "  $($pl.Online)/$($pl.Max) jogando"
 }
 $lease   = Get-HostLease
@@ -192,6 +196,7 @@ Row '[A]' 'Agendar sync/backup/vigia'  'Cyan'  ''    ''                         
 Row '[V]' 'Versao do Minecraft'         'Cyan'  ''    ''                           ''
 Row '[D]' 'Dificuldade do mundo'        'Cyan'  ''    ''                           ''
 Row '[M]' 'Memoria do servidor (RAM)'   'Cyan'  ''    ''                           ''
+Row '[B]' 'Bot AFK (farms sem jogador)' 'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL
 P '  ' ; P '[0]' 'DarkGray'; P ' Sair' 'DarkGray'; NL
