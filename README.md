@@ -33,6 +33,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
   - [🔒 Syncthing sempre no ar (guardião)](#-syncthing-sempre-no-ar-guardião)
   - [📡 Vigia de rede e trava do host](#-vigia-de-rede-e-trava-do-host)
+  - [🤖 Bot AFK (farms que precisam de jogador)](#-bot-afk-farms-que-precisam-de-jogador)
   - [⬆️ Atualizando da v1.0.0](#️-atualizando-da-v100)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
 - [🧾 Captura de erros / diagnóstico](#-captura-de-erros--diagnóstico)
@@ -162,6 +163,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **V · Versão do Minecraft** | Lista as **releases oficiais** direto do manifest da Mojang (snapshots e pré-releases ficam de fora) e troca a `VERSION` do `compose.yaml`. Avisa se a troca é subida (converte o mapa, **irreversível**) ou descida (o mundo convertido **não abre** numa versão anterior), oferece backup antes e pode recriar o servidor na hora. |
 | **D · Dificuldade do mundo** | Escolhe entre Pacífico, Fácil, Normal e Difícil. Grava no `data/server.properties`, que o Syncthing leva para os outros PCs (sem git), e aplica **na hora** se o servidor estiver neste PC. Se estiver em outro PC, mostra o comando para rodar no console de lá — ou vale no próximo início. |
 | **M · Memória do servidor** | Detecta a RAM do PC e sugere 25% dela (piso 2 GB, teto 32 GB: PC de 8 GB → 2 GB, 64 GB → 16 GB, 128 GB+ → 32 GB). Grava `MC_MEMORY` no `.env` local — cada PC tem o seu valor. Com o servidor no ar, oferece recriar o container para aplicar (a opção `9` **não** aplica, pois `docker restart` não relê o `.env`). |
+| **B · Bot AFK** | Liga/desliga o "jogador" parado nas farms que só funcionam com alguém por perto e testa se a biblioteca do bot entra na versão do servidor. Detalhes em [Bot AFK](#-bot-afk-farms-que-precisam-de-jogador). |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
@@ -322,6 +324,26 @@ em `logs/net-guard.log`.
 > com bytes crus) com a leitura da API key do Syncthing + POST. Por isso a trava fica num arquivo
 > separado (`lib-lease.ps1`) — não junte os dois de volta.
 
+### 🤖 Bot AFK (farms que precisam de jogador)
+O `/forceload` mantém chunks rodando (funis, redstone, pistões, plantas), mas **não** faz nascer
+mobs: spawn natural e spawners precisam de um jogador por perto. O bot AFK resolve isso entrando
+como jogador e ficando parado no ponto da farm.
+
+- **Onde fica:** `bot/bots.json` (nome, coordenadas e descrição de cada bot). Hoje: `AFK_pigman`.
+- **Regras:** modo aventura (parado não gasta fome), spawnpoint no ponto exato, nome com prefixo
+  `AFK_` e time `bots` com rótulo `[BOT]`. O menu e os relatórios contam `AFK_*` como bot, não
+  como jogador. A cada 60 s ele confere posição e modo e se corrige sozinho.
+- **Só no PC que hospeda:** a opção **1** liga o bot depois do servidor; as opções **2** e **K** e o
+  vigia de rede o desligam antes de parar o servidor. Ele fica no profile `bot` do compose, então um
+  `docker compose up` comum não o liga.
+- **Só loga se a versão for aprovada:** `scripts/check-bot.ps1` sobe um **servidor descartável**
+  (mesma `VERSION`, mundo plano vazio, rede Docker própria, nada do seu mapa) e testa o bot entrando.
+  Se a biblioteca não tiver a versão exata, testa o modo **protocolo forçado** (dados da versão
+  vizinha, ex. 26.1, anunciando o protocolo do servidor). O veredito vale para o par
+  *(versão do servidor, versão da biblioteca)* e fica em `logs/bot-compat.json`; mudou um dos dois, o
+  bot não sobe até testar de novo (opção **B → 1**). A opção **V** avisa disso antes de trocar a versão.
+- **Senha do RCON:** o bot a lê do `data/server.properties` (montado somente leitura). Nunca vai para o git.
+
 ### ⬆️ Atualizando da v1.0.0
 A v1.1.0 separou o jogo e a replicação em dois projetos Docker. Os containers criados pela v1.0.0
 ficam no projeto antigo — então, depois do `[U]`, **basta abrir o `menu.bat`**: ele migra sozinho.
@@ -391,6 +413,7 @@ Server-Minecraft/
 ├── README.md            # Este arquivo
 ├── LICENSE              # Licença GNU GPL v3.0
 ├── .gitignore           # Ignora dados, segredos, backups e logs
+├── bot/                 # Bot AFK: bot.js, bots.json (pontos), smoke.js (teste), lib.js, info.js
 ├── scripts/
 │   ├── render-menu.ps1  # Desenha o painel (cabeçalho ao vivo + duas colunas)
 │   ├── lib-hosts.ps1    # Descobre quem hospeda no Tailscale + ping do Minecraft + "este PC tem rede?"
@@ -405,6 +428,8 @@ Server-Minecraft/
 │   ├── detect-errors.ps1# Detector de erros / diagnóstico (opção 4)
 │   ├── set-version.ps1  # Seletor de versão oficial do Minecraft (opção V)
 │   ├── set-difficulty.ps1 # Seletor de dificuldade — grava no server.properties sincronizado (opção D)
+│   ├── bot.ps1          # Liga/desliga/status do bot AFK (opção B; usado pelas opções 1, 2 e K)
+│   ├── check-bot.ps1    # Teste de compatibilidade do bot num servidor descartável
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + agenda as tarefas (opção X)
 │   ├── install-tasks.ps1# Agenda sync (30 min) + backup diário 22:00 + vigia de rede (opção A)
 │   ├── sync-world.ps1   # Sync consistente do mapa (tarefa de 30 min e opção 2)

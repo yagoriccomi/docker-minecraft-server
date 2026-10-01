@@ -40,3 +40,7 @@ Desktop.ini
 
 # Memoria da JVM deste PC (opcao [M] do menu) - cada PC tem a sua
 /.env
+
+# Bot AFK: dependencias e modo de versao aprovado pelo verificador (gerados localmente)
+/bot/node_modules/
+/bot/runtime.json

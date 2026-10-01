@@ -40,3 +40,26 @@ services:
       - ./data:/data           # Volume de dados do servidor (contém o world)
     restart: unless-stopped    # Volta sozinho após reboot/queda de energia SE estava rodando.
                                # NAO volta se você parar pela opção 6 (handoff) — preserva o anti-split-brain.
+
+  # Bot AFK: um "jogador" parado no ponto das farms que precisam de alguem por perto.
+  # Fica no profile "bot": um 'up' comum NAO o liga. Quem liga e o scripts\bot.ps1, e so
+  # depois que o verificador (scripts\check-bot.ps1) aprovou a versao. As paradas do menu
+  # (opcoes 2 e K) e o vigia de rede o desligam junto com o servidor.
+  bot:
+    image: node:22-alpine
+    container_name: minecraft-bot
+    profiles: ["bot"]
+    working_dir: /app
+    command: ["sh", "-c", "npm install --omit=dev --no-audit --no-fund && node bot.js"]
+    environment:
+      BOT_HOST: mc
+      BOT_PORT: "25565"
+      RCON_PORT: "25575"
+      SERVER_PROPERTIES: /mcdata/server.properties   # a senha do RCON vem daqui, nunca do git
+    volumes:
+      - ./bot:/app
+      - ./data:/mcdata:ro      # somente leitura: o bot so le o server.properties
+    depends_on:
+      mc:
+        condition: service_healthy
+    restart: unless-stopped
