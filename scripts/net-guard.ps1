@@ -21,7 +21,7 @@ $FALHAS_PARA_PARAR = 3    # checagens seguidas sem rede (1 por minuto) antes de 
 $OKS_PARA_VOLTAR   = 2    # checagens seguidas com rede antes de pensar em religar
 $SEM_PEER_MIN      = 10   # rede de volta mas nenhum PC do sync conectado: decide sozinho apos N min
 
-$s = [pscustomobject]@{ falhas = 0; oks = 0; parado = $false; paradoEm = ''; voltouEm = '' }
+$s = [pscustomobject]@{ falhas = 0; oks = 0; parado = $false; paradoEm = ''; voltouEm = ''; bot = $false }
 if (Test-Path $statePath) {
     try {
         $lido = Get-Content $statePath -Raw | ConvertFrom-Json
@@ -36,6 +36,8 @@ function Stop-Local([string]$Aviso) {
     $null = Enter-WorldLock -TimeoutMin 5
     try {
         # O bot AFK sai junto: ele so pode existir no PC que hospeda (sem erro se nao existir).
+        # Guarda se ele estava ligado, para religar junto quando o servidor voltar.
+        $s.bot = ((Get-ContainerState 'minecraft-bot') -eq 'running')
         Invoke-Docker 'stop -t 10 minecraft-bot' 60 | Out-Null
         Invoke-Docker 'stop -t 10 minecraft-viaproxy' 60 | Out-Null
         $r = Invoke-Docker "stop -t 60 $mcName" 120
@@ -109,6 +111,12 @@ try {
                     if ($r.Code -ne 0) { throw ('docker start falhou: {0} {1}' -f $r.Err, $r.Out) }
                     $s.parado = $false
                     Write-Log 'vigia | rede de volta: servidor RELIGADO neste PC.' 'Green'
+                    if ($s.bot) {
+                        # So sobe se a versao continuar aprovada; o bot espera o servidor terminar de abrir.
+                        & (Join-Path $PSScriptRoot 'bot.ps1') -Acao subir -Auto | Out-Null
+                        Write-Log ('vigia | bot AFK religado junto (codigo {0}).' -f $LASTEXITCODE)
+                        $s.bot = $false
+                    }
                 }
             }
         }
