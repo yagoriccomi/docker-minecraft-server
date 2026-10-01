@@ -44,3 +44,4 @@ Desktop.ini
 # Bot AFK: dependencias e modo de versao aprovado pelo verificador (gerados localmente)
 /bot/node_modules/
 /bot/runtime.json
+/bot/viaproxy/

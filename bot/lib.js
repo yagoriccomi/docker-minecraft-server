@@ -64,4 +64,23 @@ function rcon (host, port, senha, comandos) {
   })
 }
 
-module.exports = { lerModo, opcoesDeVersao, senhaRcon, rcon }
+// O bot AFK nao anda: sem fisica e SEM enviar nenhum pacote de movimento. Ele so confirma
+// os teleportes do servidor (teleport_confirm), o que basta para o servidor aceitar a posicao.
+// Motivo: atraves do ViaProxy (bot 26.1 -> servidor 26.3) o pacote de movimento traduzido e
+// recusado com "invalid_player_movement" mesmo com coordenadas validas.
+const MOVIMENTO = new Set(['position', 'position_look', 'look', 'flying'])
+function protegerMovimento (bot, log) {
+  const escrever = bot._client.write.bind(bot._client)
+  let descartados = 0
+  bot._client.write = (nome, dados) => {
+    if (MOVIMENTO.has(nome)) {
+      if (descartados++ === 0) log(`movimento desligado: pacotes '${nome}' e afins nao sao enviados`)
+      return
+    }
+    return escrever(nome, dados)
+  }
+  // Primeiro pacote de posicao vindo do servidor, para diagnostico.
+  bot._client.once('position', p => log('posicao recebida do servidor: ' + JSON.stringify(p)))
+}
+
+module.exports = { lerModo, opcoesDeVersao, senhaRcon, rcon, protegerMovimento }

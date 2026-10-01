@@ -17,6 +17,8 @@ $script:LogFile = Join-Path $root 'logs\bot.log'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $botName = 'minecraft-bot'
+$vpName  = 'minecraft-viaproxy'
+$runtime = Join-Path $root 'bot\runtime.json'
 $cache   = Join-Path $root 'logs\bot-compat.json'
 $compose = Join-Path $root 'compose.yaml'
 
@@ -54,7 +56,8 @@ function Mostrar-Status {
     if ((Get-ContainerState $mcName) -eq 'running') {
         try {
             $lst = Invoke-Rcon 'list'
-            $nomes = @(); if ($lst -match ':\s*(.+)$') { $nomes = @($Matches[1] -split ',\s*' | Where-Object { $_ }) }
+            # O time "bots" poe o rotulo [BOT] antes do nome no 'list': tira o rotulo para comparar.
+            $nomes = @(); if ($lst -match ':\s*(.+)$') { $nomes = @($Matches[1] -split ',\s*' | Where-Object { $_ } | ForEach-Object { ($_ -replace '^\[[^\]]*\]\s*', '').Trim() }) }
             $bots = @($nomes | Where-Object { $_ -like 'AFK_*' }); $jog = @($nomes | Where-Object { $_ -notlike 'AFK_*' })
             Write-Host ('  Online agora: {0} jogador(es), {1} bot(s){2}' -f $jog.Count, $bots.Count, $(if ($bots) { ' -> ' + ($bots -join ', ') } else { '' })) -ForegroundColor Gray
         } catch { }
@@ -75,15 +78,19 @@ function Subir {
         return 2
     }
     # --no-deps: nunca recria/mexe no container do Minecraft ao ligar o bot.
-    $r = Invoke-Docker ('compose -f "{0}" --profile bot up -d --no-deps bot' -f $compose) 300
+    # No modo "via proxy" o ViaProxy sobe junto (o bot entra por ele).
+    $servicos = 'bot'
+    try { if ((Get-Content -LiteralPath $runtime -Raw | ConvertFrom-Json).via -eq 'proxy') { $servicos = 'viaproxy bot' } } catch { }
+    $r = Invoke-Docker ('compose -f "{0}" --profile bot up -d --no-deps {1}' -f $compose, $servicos) 300
     if ($r.Code -ne 0) { Write-Log ("bot ERRO | nao subiu: {0}" -f $r.Err) 'Red'; return 1 }
     Write-Log ("bot | ligado ({0})" -f $v.modo) 'Green'
     return 0
 }
 
 function Parar {
-    if (-not (Get-ContainerState $botName)) { return 0 }
+    if (-not (Get-ContainerState $botName) -and -not (Get-ContainerState $vpName)) { return 0 }
     Invoke-Docker "stop -t 10 $botName" 60 | Out-Null
+    Invoke-Docker "stop -t 10 $vpName" 60 | Out-Null
     Write-Log 'bot | desligado' 'Gray' | Out-Null
     return 0
 }

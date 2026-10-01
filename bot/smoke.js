@@ -4,7 +4,7 @@
 //
 // Uso: node smoke.js <host> <porta> [dados] [protocolo]
 const mineflayer = require('mineflayer')
-const { opcoesDeVersao } = require('./lib')
+const { opcoesDeVersao, protegerMovimento } = require('./lib')
 
 const [host, porta, dados, protocolo] = process.argv.slice(2)
 const FICAR_S = 20
@@ -17,7 +17,8 @@ setTimeout(() => sair(1, `sem entrar em ${LIMITE_S} s`), LIMITE_S * 1000)
 
 let bot
 try {
-  bot = mineflayer.createBot({ host, port: Number(porta), username: 'AFK_teste', auth: 'offline', ...opcoesDeVersao(modo) })
+  bot = mineflayer.createBot({ host, port: Number(porta), username: 'AFK_teste', auth: 'offline', physicsEnabled: false, ...opcoesDeVersao(modo) })
+  protegerMovimento(bot, m => console.log('diag: ' + m))
 } catch (e) { sair(1, e.message) }
 
 bot.once('spawn', () => {

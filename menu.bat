@@ -397,7 +397,7 @@ echo.
 call :has_local_mc
 if errorlevel 1 ( echo Nenhum container do Minecraft neste PC. & echo. & pause & goto menu )
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1" -Acao parar <nul
-docker rm minecraft-bot >nul 2>&1
+docker rm minecraft-bot minecraft-viaproxy >nul 2>&1
 docker stop -t 60 minecraft >nul 2>&1
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\host-lease.ps1" -Estado desligado -Motivo "opcao K" <nul
 docker rm minecraft

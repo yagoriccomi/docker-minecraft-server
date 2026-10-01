@@ -9,6 +9,8 @@
 #        - exato: a biblioteca tem os dados da versao do servidor;
 #        - protocolo forcado: usa os dados da versao vizinha mais nova (ex.: 26.1) anunciando
 #          o protocolo do servidor. So passa se os pacotes nao mudaram entre as duas;
+#        - via proxy: o bot entra como a versao vizinha num ViaProxy, que traduz os pacotes
+#          para a versao do servidor (bot\viaproxy\ViaProxy.jar, baixado na primeira vez);
 #   5) grava o veredito em logs\bot-compat.json e o modo aprovado em bot\runtime.json.
 #
 # O veredito vale para o par (versao do servidor, versao da biblioteca): mudou um dos dois,
@@ -29,6 +31,11 @@ $runtime  = Join-Path $botDir 'runtime.json'
 $NODE     = 'node:22-alpine'
 $MC_IMG   = 'itzg/minecraft-server:latest'
 $TESTE    = 'mcbot-teste'          # nome do container E da rede do servidor descartavel
+$PROXY    = 'mcbot-teste-proxy'    # ViaProxy descartavel do teste
+$JAVA     = 'eclipse-temurin:21-jre-alpine'
+$VP_VER   = '3.4.14'               # ViaProxy fixado; troque aqui para atualizar
+$vpDir    = Join-Path $botDir 'viaproxy'
+$vpJar    = Join-Path $vpDir 'ViaProxy.jar'
 $vol      = '-v "{0}:/app" -w /app' -f $botDir
 
 function Gravar($obj) {
@@ -87,11 +94,16 @@ if (-not $Forcar -and (Test-Path $cache)) {
 
 # ---------------- 5) tentativas ----------------
 $tentativas = @()
-if ($info.temDados) { $tentativas += @{ Modo = "exato ($ver)"; Args = $ver; Run = @{ dados = $ver } } }
+if ($info.temDados) { $tentativas += @{ Modo = "exato ($ver)"; Host = $TESTE; Porta = 25565; Args = $ver; Run = @{ dados = $ver } } }
 elseif ($info.vizinha -and $info.protocoloAlvo) {
     $tentativas += @{ Modo = ('protocolo forcado: dados da {0} anunciando {1}' -f $info.vizinha.versao, $info.protocoloAlvo)
+                      Host = $TESTE; Porta = 25565
                       Args = ('{0} {1}' -f $info.vizinha.versao, $info.protocoloAlvo)
                       Run  = @{ dados = $info.vizinha.versao; protocolo = [int]$info.protocoloAlvo } }
+    $tentativas += @{ Modo = ('via proxy: entra como {0}, o ViaProxy {1} traduz para a {2}' -f $info.vizinha.versao, $VP_VER, $ver)
+                      Host = $PROXY; Porta = 25568; Proxy = $true
+                      Args = $info.vizinha.versao
+                      Run  = @{ dados = $info.vizinha.versao; via = 'proxy'; viaproxy = $VP_VER } }
 }
 $res = [ordered]@{
     servidor = $ver; protocolo = $info.protocoloAlvo; mineflayer = $info.mineflayer; minecraftData = $info.minecraftData
@@ -111,6 +123,7 @@ if (-not $info.temDados) {
 # ---------------- 6) servidor descartavel + teste ----------------
 $falhas = @()
 try {
+    Invoke-Docker "rm -f -v $PROXY" 60 | Out-Null
     Invoke-Docker "rm -f -v $TESTE" 60 | Out-Null
     Invoke-Docker "network rm $TESTE" 30 | Out-Null
     $r = Invoke-Docker "network create $TESTE" 30
@@ -129,8 +142,26 @@ try {
     if ($saude -ne 'healthy') { throw ('o servidor de teste nao ficou pronto (estado: {0})' -f $saude) }
 
     foreach ($t in $tentativas) {
+        if ($t.Proxy) {
+            if (-not (Test-Path $vpJar)) {
+                Write-Host ('  Baixando o ViaProxy {0} (~50 MB, so na primeira vez)...' -f $VP_VER) -ForegroundColor DarkGray
+                if (-not (Test-Path $vpDir)) { New-Item -ItemType Directory -Path $vpDir | Out-Null }
+                try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
+                Invoke-WebRequest -UseBasicParsing -Uri ("https://github.com/ViaVersion/ViaProxy/releases/download/v{0}/ViaProxy-{0}.jar" -f $VP_VER) -OutFile $vpJar
+            }
+            Write-Host '  Subindo um ViaProxy descartavel na frente do servidor de teste...' -ForegroundColor DarkGray
+            $r = Invoke-Docker ('run -d --name {0} --network {1} -v "{2}:/vp" -w /vp {3} java -Xmx256m -jar ViaProxy.jar cli --bind-address 0.0.0.0:25568 --target-address {1}:25565 --auth-method NONE' -f $PROXY, $TESTE, $vpDir, $JAVA) 300
+            if ($r.Code -ne 0) { $falhas += ('{0}: nao subiu o ViaProxy ({1})' -f $t.Modo, $r.Err); continue }
+            $limiteP = (Get-Date).AddSeconds(90)
+            while ((Get-Date) -lt $limiteP) {
+                if ((Invoke-Docker "logs $PROXY" 30).Out -match 'started|listening|Binding') { break }
+                Start-Sleep -Seconds 3
+            }
+            Start-Sleep -Seconds 3
+        }
         Write-Host ('  Testando o bot: {0}...' -f $t.Modo) -ForegroundColor DarkGray
-        $r = Invoke-Docker ("run --rm --network {0} {1} {2} node smoke.js {0} 25565 {3}" -f $TESTE, $vol, $NODE, $t.Args) 180
+        $r = Invoke-Docker ("run --rm --network {0} {1} {2} node smoke.js {3} {4} {5}" -f $TESTE, $vol, $NODE, $t.Host, $t.Porta, $t.Args) 180
+        Add-Content -LiteralPath (Join-Path $root 'logs\bot-smoke.log') -Value ("==== {0} | {1}`n{2}`n{3}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $t.Modo, $r.Out, $r.Err)
         $ultimaLinha = (($r.Out + "`n" + $r.Err).Trim() -split "`n" | Where-Object { $_ -match '^(OK|FALHOU):' } | Select-Object -Last 1)
         if (-not $ultimaLinha) { $ultimaLinha = ($r.Out + ' ' + $r.Err).Trim() }
         if ($r.Code -eq 0) {
@@ -147,6 +178,7 @@ try {
 } catch {
     $res.resultado = 'erro'; $res.detalhe = $_.Exception.Message
 } finally {
+    Invoke-Docker "rm -f -v $PROXY" 60 | Out-Null
     Invoke-Docker "rm -f -v $TESTE" 90 | Out-Null
     Invoke-Docker "network rm $TESTE" 30 | Out-Null
 }

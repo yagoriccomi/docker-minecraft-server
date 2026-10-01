@@ -332,14 +332,20 @@ como jogador e ficando parado no ponto da farm.
 - **Onde fica:** `bot/bots.json` (nome, coordenadas e descrição de cada bot). Hoje: `AFK_pigman`.
 - **Regras:** modo aventura (parado não gasta fome), spawnpoint no ponto exato, nome com prefixo
   `AFK_` e time `bots` com rótulo `[BOT]`. O menu e os relatórios contam `AFK_*` como bot, não
-  como jogador. A cada 60 s ele confere posição e modo e se corrige sozinho.
+  como jogador. A cada 60 s ele confere posição e modo e se corrige sozinho. Ele não anda nem envia
+  pacotes de movimento: só confirma os teleportes do servidor (pela tradução de versão, o movimento
+  traduzido era recusado com `invalid_player_movement`).
 - **Só no PC que hospeda:** a opção **1** liga o bot depois do servidor; as opções **2** e **K** e o
   vigia de rede o desligam antes de parar o servidor. Ele fica no profile `bot` do compose, então um
   `docker compose up` comum não o liga.
 - **Só loga se a versão for aprovada:** `scripts/check-bot.ps1` sobe um **servidor descartável**
   (mesma `VERSION`, mundo plano vazio, rede Docker própria, nada do seu mapa) e testa o bot entrando.
-  Se a biblioteca não tiver a versão exata, testa o modo **protocolo forçado** (dados da versão
-  vizinha, ex. 26.1, anunciando o protocolo do servidor). O veredito vale para o par
+  Se a biblioteca não tiver a versão exata, testa dois modos alternativos: **protocolo forçado** (dados
+  da versão vizinha, ex. 26.1, anunciando o protocolo do servidor) e **via proxy**, em que o bot entra
+  como a versão vizinha num [ViaProxy](https://github.com/ViaVersion/ViaProxy) que traduz os pacotes
+  para a versão do servidor. Em 30/09/2026, com o servidor na 26.3, só o modo via proxy passou.
+  No modo via proxy, o container `minecraft-viaproxy` (Java, sem porta exposta) sobe e desce junto com o
+  bot, e o `ViaProxy.jar` é baixado na primeira vez para `bot/viaproxy/` (fora do git). O veredito vale para o par
   *(versão do servidor, versão da biblioteca)* e fica em `logs/bot-compat.json`; mudou um dos dois, o
   bot não sobe até testar de novo (opção **B → 1**). A opção **V** avisa disso antes de trocar a versão.
 - **Senha do RCON:** o bot a lê do `data/server.properties` (montado somente leitura). Nunca vai para o git.

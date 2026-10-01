@@ -9,10 +9,12 @@
 const path = require('path')
 const fs = require('fs')
 const mineflayer = require('mineflayer')
-const { lerModo, opcoesDeVersao, senhaRcon, rcon } = require('./lib')
+const { lerModo, opcoesDeVersao, senhaRcon, rcon, protegerMovimento } = require('./lib')
 
 const HOST = process.env.BOT_HOST || 'mc'
 const PORT = Number(process.env.BOT_PORT || 25565)
+const PROXY_HOST = process.env.PROXY_HOST || 'viaproxy'   // modo "via proxy" (ViaProxy traduz a versao)
+const PROXY_PORT = Number(process.env.PROXY_PORT || 25568)
 const RCON_PORT = Number(process.env.RCON_PORT || 25575)
 const PROPS = process.env.SERVER_PROPERTIES || '/mcdata/server.properties'
 const VERIFICAR_S = 60          // de quanto em quanto tempo confere posicao e modo de jogo
@@ -20,6 +22,7 @@ const TOLERANCIA = 1.5          // blocos de folga antes de devolver o bot ao po
 
 const bots = JSON.parse(fs.readFileSync(path.join(__dirname, 'bots.json'), 'utf8'))
 const modo = lerModo(path.join(__dirname, 'runtime.json'))
+const DESTINO = modo.via === 'proxy' ? { host: PROXY_HOST, port: PROXY_PORT } : { host: HOST, port: PORT }
 const log = (nome, msg) => console.log(`[${new Date().toISOString()}] ${nome}: ${msg}`)
 
 async function comandos (lista) {
@@ -44,7 +47,8 @@ function iniciar (b, espera = 10) {
   let timer = null
   let bot
   try {
-    bot = mineflayer.createBot({ host: HOST, port: PORT, username: b.nome, auth: 'offline', ...opcoesDeVersao(modo) })
+    bot = mineflayer.createBot({ ...DESTINO, username: b.nome, auth: 'offline', physicsEnabled: false, ...opcoesDeVersao(modo) })
+    protegerMovimento(bot, m => log(b.nome, m))
   } catch (e) {
     log(b.nome, 'nao foi possivel criar o bot: ' + e.message)
     return setTimeout(() => iniciar(b, Math.min(espera * 2, 300)), espera * 1000)
@@ -76,5 +80,6 @@ function iniciar (b, espera = 10) {
   })
 }
 
-log('bot', `modo de versao: ${modo.dados ? (modo.protocolo ? `dados ${modo.dados} com protocolo ${modo.protocolo}` : `exato ${modo.dados}`) : 'automatico'}`)
+const descr = !modo.dados ? 'automatico' : modo.via === 'proxy' ? `entra como ${modo.dados} pelo ViaProxy ${modo.viaproxy || ''}` : modo.protocolo ? `dados ${modo.dados} com protocolo ${modo.protocolo}` : `exato ${modo.dados}`
+log('bot', `modo de versao: ${descr} -> ${DESTINO.host}:${DESTINO.port}`)
 bots.forEach(b => iniciar(b))
