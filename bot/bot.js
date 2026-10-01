@@ -29,6 +29,9 @@ async function comandos (lista) {
   return rcon(HOST, RCON_PORT, senhaRcon(PROPS), lista)
 }
 
+// Modo de jogo por bot (bots.json -> "modo"); sem o campo, aventura.
+const modoDe = b => b.modo || 'adventure'
+
 async function configurar (b) {
   const { nome, x, y, z } = b
   await comandos([
@@ -36,11 +39,11 @@ async function configurar (b) {
     'team modify bots color gray',
     'team modify bots prefix "[BOT] "',
     `team join bots ${nome}`,
-    `gamemode adventure ${nome}`,
+    `gamemode ${modoDe(b)} ${nome}`,
     `spawnpoint ${nome} ${x} ${y} ${z}`,
     `tp ${nome} ${x + 0.5} ${y} ${z + 0.5}`
   ])
-  log(nome, `configurado: aventura, time bots, spawnpoint e posicao em ${x} ${y} ${z}`)
+  log(nome, `configurado: modo ${modoDe(b)}, time bots, spawnpoint e posicao em ${x} ${y} ${z}`)
 }
 
 function iniciar (b, espera = 10) {
@@ -62,7 +65,7 @@ function iniciar (b, espera = 10) {
       const p = bot.entity && bot.entity.position
       if (!p) return
       const longe = Math.abs(p.x - (b.x + 0.5)) > TOLERANCIA || Math.abs(p.z - (b.z + 0.5)) > TOLERANCIA || Math.abs(p.y - b.y) > TOLERANCIA
-      if (longe || bot.game.gameMode !== 'adventure') {
+      if (longe || bot.game.gameMode !== modoDe(b)) {
         log(b.nome, `fora do lugar (${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}, ${bot.game.gameMode}); corrigindo`)
         try { await configurar(b) } catch (e) { log(b.nome, 'falha ao corrigir: ' + e.message) }
       }

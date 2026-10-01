@@ -4,6 +4,7 @@
     "descricao": "Farm de pigman: em cima do vidro roxo, encostado na cama pelo lado de cima",
     "x": 574,
     "y": 200,
-    "z": -1289
+    "z": -1289,
+    "modo": "survival"
   }
 ]
