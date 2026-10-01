@@ -33,6 +33,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
   - [🔒 Syncthing sempre no ar (guardião)](#-syncthing-sempre-no-ar-guardião)
   - [📡 Vigia de rede e trava do host](#-vigia-de-rede-e-trava-do-host)
+  - [⚙️ Configuração local (.env)](#️-configuração-local-env)
   - [🤖 Bot AFK (farms que precisam de jogador)](#-bot-afk-farms-que-precisam-de-jogador)
   - [⬆️ Atualizando da v1.0.0](#️-atualizando-da-v100)
 - [🔧 O que alterar — e para quê](#-o-que-alterar--e-para-quê)
@@ -164,6 +165,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **D · Dificuldade do mundo** | Escolhe entre Pacífico, Fácil, Normal e Difícil. Grava no `data/server.properties`, que o Syncthing leva para os outros PCs (sem git), e aplica **na hora** se o servidor estiver neste PC. Se estiver em outro PC, mostra o comando para rodar no console de lá — ou vale no próximo início. |
 | **M · Memória do servidor** | Detecta a RAM do PC e sugere 25% dela (piso 2 GB, teto 32 GB: PC de 8 GB → 2 GB, 64 GB → 16 GB, 128 GB+ → 32 GB). Grava `MC_MEMORY` no `.env` local — cada PC tem o seu valor. Com o servidor no ar, oferece recriar o container para aplicar (a opção `9` **não** aplica, pois `docker restart` não relê o `.env`). |
 | **R · Distâncias** | Troca a distância de **visão** (chunks enviados a cada jogador: mais rede e RAM) e a de **simulação** (chunks que rodam em volta de cada jogador e do bot: mobs, plantas, farms, ou seja, CPU). Grava `MC_VIEW_DISTANCE` e `MC_SIMULATION_DISTANCE` no `.env` local e mostra o tempo por tick atual para ajudar a decidir. Recomendado: visão 10 a 12, simulação 8 a 10. Como a `M`, oferece recriar o servidor para aplicar. |
+| **F · Áreas forçadas** | Liga ou desliga **todas** as áreas com `/forceload` sem perder nada: ao desligar, guarda a lista em `data/forceload-cadastro.json` (o Syncthing leva aos outros PCs) e só então tira as áreas; ao ligar, junta o que está ativo com o cadastro e recoloca tudo. O estado deste PC fica em `MC_FORCELOAD` no `.env` e é aplicado pelo **`1`** quando o servidor fica pronto. **Cadastrar** área nova é pelo console (**`7`**): `forceload add x1 z1 x2 z2`. |
 | **B · Bot AFK** | Liga/desliga o "jogador" parado nas farms que só funcionam com alguém por perto e testa se a biblioteca do bot entra na versão do servidor. Detalhes em [Bot AFK](#-bot-afk-farms-que-precisam-de-jogador). |
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
@@ -325,6 +327,21 @@ em `logs/net-guard.log`.
 > com bytes crus) com a leitura da API key do Syncthing + POST. Por isso a trava fica num arquivo
 > separado (`lib-lease.ps1`) — não junte os dois de volta.
 
+### ⚙️ Configuração local (`.env`)
+Cada PC tem o seu `.env` (fora do git) com o que depende do hardware e das escolhas de quem hospeda.
+Copie o modelo e ajuste, ou deixe o menu gravar por você:
+
+```bat
+copy .env.example .env
+```
+
+| Variável | Opção do menu | Padrão | O que é |
+|----------|---------------|--------|---------|
+| `MC_MEMORY` | **M** | `4G` | RAM da JVM (recomendado 25% da RAM do PC) |
+| `MC_VIEW_DISTANCE` | **R** | `10` | Chunks enviados a cada jogador |
+| `MC_SIMULATION_DISTANCE` | **R** | `10` | Chunks que rodam em volta de cada jogador e do bot |
+| `MC_FORCELOAD` | **F** | `ligado` | Liga/desliga as áreas com `/forceload` |
+
 ### 🤖 Bot AFK (farms que precisam de jogador)
 O `/forceload` mantém chunks rodando (funis, redstone, pistões, plantas), mas **não** faz nascer
 mobs: spawn natural e spawners precisam de um jogador por perto. O bot AFK resolve isso entrando
@@ -429,6 +446,7 @@ Server-Minecraft/
 ├── README.md            # Este arquivo
 ├── LICENSE              # Licença GNU GPL v3.0
 ├── .gitignore           # Ignora dados, segredos, backups e logs
+├── .env.example         # Modelo do .env local (memória, distâncias, áreas forçadas)
 ├── bot/                 # Bot AFK: bot.js, bots.json (pontos), smoke.js (teste), lib.js, info.js
 ├── scripts/
 │   ├── render-menu.ps1  # Desenha o painel (cabeçalho ao vivo + duas colunas)
@@ -445,6 +463,8 @@ Server-Minecraft/
 │   ├── set-version.ps1  # Seletor de versão oficial do Minecraft (opção V)
 │   ├── set-difficulty.ps1 # Seletor de dificuldade — grava no server.properties sincronizado (opção D)
 │   ├── bot.ps1          # Liga/desliga/status do bot AFK (opção B; usado pelas opções 1, 2 e K)
+│   ├── set-distance.ps1 # Distâncias de visão e simulação no .env (opção R)
+│   ├── forceload.ps1    # Liga/desliga as áreas forçadas sem perder o cadastro (opção F)
 │   ├── check-bot.ps1    # Teste de compatibilidade do bot num servidor descartável
 │   ├── install-deps.ps1 # Instala Docker/Git/Tailscale + agenda as tarefas (opção X)
 │   ├── install-tasks.ps1# Agenda sync (30 min) + backup diário 22:00 + vigia de rede (opção A)
