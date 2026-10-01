@@ -196,6 +196,7 @@ Row '[A]' 'Agendar sync/backup/vigia'  'Cyan'  ''    ''                         
 Row '[V]' 'Versao do Minecraft'         'Cyan'  ''    ''                           ''
 Row '[D]' 'Dificuldade do mundo'        'Cyan'  ''    ''                           ''
 Row '[M]' 'Memoria do servidor (RAM)'   'Cyan'  ''    ''                           ''
+Row '[R]' 'Distancias (visao/simulacao)' 'Cyan' ''    ''                           ''
 Row '[B]' 'Bot AFK (farms sem jogador)' 'Cyan'  ''    ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL

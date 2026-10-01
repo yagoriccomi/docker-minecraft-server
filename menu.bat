@@ -44,6 +44,7 @@ if /i "%opcao%"=="U" goto atualizar
 if /i "%opcao%"=="V" goto versao
 if /i "%opcao%"=="D" goto dificuldade
 if /i "%opcao%"=="M" goto memoria
+if /i "%opcao%"=="R" goto distancia
 if /i "%opcao%"=="B" goto bot
 if /i "%opcao%"=="P" goto primeiros
 if /i "%opcao%"=="K" goto parar_tudo
@@ -357,6 +358,12 @@ goto menu
 cls
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1"
 call :log "Tela do bot AFK aberta"
+goto menu
+
+:distancia
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\set-distance.ps1"
+call :log "Seletor de distancias aberto"
 goto menu
 
 :memoria
