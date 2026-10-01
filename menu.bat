@@ -45,6 +45,7 @@ if /i "%opcao%"=="V" goto versao
 if /i "%opcao%"=="D" goto dificuldade
 if /i "%opcao%"=="M" goto memoria
 if /i "%opcao%"=="R" goto distancia
+if /i "%opcao%"=="F" goto forceload
 if /i "%opcao%"=="B" goto bot
 if /i "%opcao%"=="P" goto primeiros
 if /i "%opcao%"=="K" goto parar_tudo
@@ -114,6 +115,9 @@ if errorlevel 1 (
 ) else (
     echo Servidor iniciado!  Minecraft: porta 25565  ^|  Syncthing: porta 8384
     call :log "OK: 'up -d' concluido"
+    echo.
+    echo Areas forcadas: aplicando o estado deste PC ^(opcao F^) quando o servidor ficar pronto...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\forceload.ps1" -Acao aplicar -Esperar <nul
     echo.
     echo Bot AFK: liga so se a versao foi aprovada pelo teste ^(opcao B^)...
     powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1" -Acao subir -Auto <nul
@@ -358,6 +362,12 @@ goto menu
 cls
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\bot.ps1"
 call :log "Tela do bot AFK aberta"
+goto menu
+
+:forceload
+cls
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\forceload.ps1"
+call :log "Tela das areas forcadas aberta"
 goto menu
 
 :distancia

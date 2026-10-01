@@ -53,7 +53,10 @@ function Get-ContainerState([string]$Name) {
 
 # Comando no console do servidor via RCON (erro = excecao).
 function Invoke-Rcon([string]$Command, [int]$TimeoutSec = 30) {
-    $r = Invoke-Docker "exec $mcName rcon-cli $Command" $TimeoutSec
+    # O comando vai como UM argumento entre aspas: solto, o rcon-cli tomaria numeros negativos
+    # (ex.: coordenadas "-1600") por opcoes e falharia.
+    $arg = $Command -replace '"', '\"'
+    $r = Invoke-Docker ('exec {0} rcon-cli "{1}"' -f $mcName, $arg) $TimeoutSec
     if ($r.Code -ne 0) { throw ("RCON '{0}' falhou: {1} {2}" -f $Command, $r.Err, $r.Out) }
     return $r.Out
 }
