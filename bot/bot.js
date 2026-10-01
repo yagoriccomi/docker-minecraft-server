@@ -74,7 +74,9 @@ function iniciar (b, espera = 10) {
   let timer = null
   let bot
   try {
-    bot = mineflayer.createBot({ ...DESTINO, username: b.nome, auth: 'offline', physicsEnabled: false, ...opcoesDeVersao(modo) })
+    // viewDistance: quantos chunks o bot pede ao servidor (bots.json -> "visao"). Nao muda a
+    // simulacao (o que roda em volta dele), so o quanto o servidor carrega e ENVIA para ele.
+    bot = mineflayer.createBot({ ...DESTINO, username: b.nome, auth: 'offline', physicsEnabled: false, viewDistance: b.visao || 'far', ...opcoesDeVersao(modo) })
     protegerMovimento(bot, m => log(b.nome, m))
   } catch (e) {
     log(b.nome, 'nao foi possivel criar o bot: ' + e.message)
