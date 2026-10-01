@@ -336,6 +336,8 @@ como jogador e ficando parado no ponto da farm.
   mobs sumirem mas **não** fazia nascer piglins. Medido em 30/09/2026 na farm de pigman: só o bot
   ~49-54 blocos de ouro/h, só o dono ~53/h, os dois juntos ~48/h (o limite é a farm, não o número de
   jogadores).
+- **Aviso para quem entra:** quando um jogador loga, ele recebe (só ele) uma mensagem dizendo que
+  há um bot, em qual farm (campo `farm` do `bots.json`) e em que coordenadas.
 - **Regras:** spawnpoint no ponto exato, nome com prefixo
   `AFK_` e time `bots` com rótulo `[BOT]`. O menu e os relatórios contam `AFK_*` como bot, não
   como jogador. A cada 60 s ele confere posição e modo e se corrige sozinho. Ele não anda nem envia

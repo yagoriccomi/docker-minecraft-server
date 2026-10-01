@@ -46,6 +46,30 @@ async function configurar (b) {
   log(nome, `configurado: modo ${modoDe(b)}, time bots, spawnpoint e posicao em ${x} ${y} ${z}`)
 }
 
+// Aviso para quem entra: cada jogador que loga recebe (so ele, via tellraw) uma mensagem dizendo
+// que ha um bot e onde. Um aviso por entrada, mesmo com varios bots online (um so lista todos).
+const avisados = new Map()   // nome -> horario do ultimo aviso
+const online = new Set()     // bots conectados agora
+function avisoDe (b) {
+  return [
+    { text: '[BOT] ', color: 'gray' },
+    { text: b.nome, color: 'yellow' },
+    { text: ` está na ${b.farm || 'farm'} (${b.x}, ${b.y}, ${b.z}) mantendo a farm rodando. É um bot, não um jogador.`, color: 'gray' }
+  ]
+}
+async function avisar (jogador) {
+  if (jogador.startsWith('AFK_')) return
+  const agora = Date.now()
+  if (agora - (avisados.get(jogador) || 0) < 30000) return
+  avisados.set(jogador, agora)
+  const linhas = bots.filter(b => online.has(b.nome)).map(b => `tellraw ${jogador} ${JSON.stringify(['', ...avisoDe(b)])}`)
+  if (!linhas.length) return
+  // Espera o cliente terminar de carregar o mundo, senao a mensagem passa despercebida.
+  setTimeout(async () => {
+    try { await comandos(linhas); log('aviso', `avisado: ${jogador}`) } catch (e) { log('aviso', 'falha ao avisar: ' + e.message) }
+  }, 4000)
+}
+
 function iniciar (b, espera = 10) {
   let timer = null
   let bot
@@ -60,6 +84,10 @@ function iniciar (b, espera = 10) {
   bot.once('spawn', async () => {
     log(b.nome, 'entrou no servidor')
     espera = 10
+    online.add(b.nome)
+    // Quem ja estava online quando o bot entrou dispara 'playerJoined' tambem: ignora os 5 s iniciais.
+    const desde = Date.now()
+    bot.on('playerJoined', p => { if (Date.now() - desde > 5000 && p && p.username) avisar(p.username) })
     try { await configurar(b) } catch (e) { log(b.nome, 'falha ao configurar pelo RCON: ' + e.message) }
     timer = setInterval(async () => {
       const p = bot.entity && bot.entity.position
@@ -78,6 +106,7 @@ function iniciar (b, espera = 10) {
   bot.on('error', e => log(b.nome, 'erro: ' + e.message))
   bot.on('end', motivo => {
     clearInterval(timer)
+    online.delete(b.nome)
     log(b.nome, `desconectado (${motivo}); tentando de novo em ${espera} s`)
     setTimeout(() => iniciar(b, Math.min(espera * 2, 300)), espera * 1000)
   })
