@@ -1,9 +1,14 @@
 # Guardiao do Syncthing: mantem a replicacao do mapa SEMPRE no ar.
 #
-# A politica 'restart: always' do compose ja cobre queda do processo e reboot, mas nao cobre
-# o container ser REMOVIDO (ex.: um 'docker compose down') nem o Docker Desktop fechado.
-# Este script cobre os dois. So respeita um desligamento DELIBERADO, feito pela opcao S do
-# menu (ou -Desligar), que deixa a marca logs\syncthing-desligado.flag.
+# Dois modos (ver lib-sync.ps1):
+#   servico -> servico do Windows (opcao N do menu). O wrapper e a recuperacao do servico ja
+#              religam em caso de queda; o guardiao cobre alguem PARAR o servico e remove
+#              qualquer container 'syncthing' que reapareca (mesmo Device ID = conflito).
+#              Nunca abre o Docker Desktop: e justamente o que este modo economiza.
+#   docker  -> container do compose.sync.yaml. A politica 'restart: always' ja cobre queda e
+#              reboot, mas nao cobre o container ser REMOVIDO nem o Docker Desktop fechado.
+# So respeita um desligamento DELIBERADO, feito pela opcao S do menu (ou -Desligar), que deixa
+# a marca logs\syncthing-desligado.flag.
 #
 # Uso:
 #   ensure-sync.ps1            -> checagem (tarefa MinecraftP2P-SyncGuard, a cada 5 min)
@@ -15,7 +20,6 @@ $ErrorActionPreference = 'SilentlyContinue'
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
 $root    = Split-Path $PSScriptRoot -Parent
-$compose = Join-Path $root 'compose.sync.yaml'
 $logDir  = Join-Path $root 'logs'
 $flag    = Join-Path $logDir 'syncthing-desligado.flag'
 $log     = Join-Path $logDir 'sync-guard.log'
@@ -26,18 +30,23 @@ if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out
 # So registra quando FAZ algo (a tarefa roda a cada 5 min; nada de log a cada checagem).
 function Log($m) { Add-Content -Path $log -Value ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m) }
 
-# docker com limite de tempo: um engine travado NUNCA prende o guardiao.
-function Docker([string]$a, [int]$sec = 30) {
-    $psi = New-Object System.Diagnostics.ProcessStartInfo 'docker', $a
-    $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true
-    try { $p = [System.Diagnostics.Process]::Start($psi) } catch { return @{ Code = -2; Out = 'docker nao encontrado' } }
-    $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
-    if (-not $p.WaitForExit($sec * 1000)) { try { $p.Kill() } catch { }; return @{ Code = -1; Out = "sem resposta em ${sec}s" } }
-    return @{ Code = $p.ExitCode; Out = ($o.Result + ' ' + $e.Result).Trim() }
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')   # Get-SyncState / Start-Sync / Stop-Sync / Invoke-SyncDocker
+$modo = Get-SyncMode
+
+# Com o servidor rodando e o sync agendado, o watcher fica desligado e o mapa so vai a cada
+# 30 min. Os LOGS do servidor (data\logs) nao precisam do mundo congelado: escaneia so essa
+# subpasta para os outros PCs verem os logs quase ao vivo (opcao 6 deles).
+function Send-ServerLogs {
+    if ((Invoke-SyncDocker 'inspect -f {{.State.Status}} minecraft' 15).Out -ne 'running') { return }
+    try {
+        [xml]$cfg = Get-Content (Join-Path $root 'syncthing_config\config.xml')
+        $hd = @{ 'X-API-Key' = $cfg.configuration.gui.apikey }
+        $f  = Invoke-RestMethod 'http://localhost:8384/rest/config/folders/minecraft-data' -Headers $hd -TimeoutSec 10
+        if (-not $f.fsWatcherEnabled) {
+            Invoke-RestMethod 'http://localhost:8384/rest/db/scan?folder=minecraft-data&sub=logs' -Method Post -Headers $hd -TimeoutSec 60 | Out-Null
+        }
+    } catch { }
 }
-function Sync-State { $r = Docker 'inspect -f {{.State.Status}} syncthing' 15; if ($r.Code -eq 0) { return $r.Out } else { return 'ausente' } }
-function Sync-Up    { return Docker ('compose -f "{0}" up -d' -f $compose) 300 }
 
 # ---------------- instalar a tarefa ----------------
 if ($Instalar) {
@@ -61,7 +70,7 @@ if ($Instalar) {
 # ---------------- desligar de proposito ----------------
 if ($Desligar) {
     ("desligado de proposito em {0} por {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $env:USERNAME) | Set-Content $flag
-    $r = Docker ('compose -f "{0}" stop' -f $compose) 90
+    $r = Stop-Sync
     Log 'Syncthing DESLIGADO de proposito (opcao S). O guardiao nao vai religar ate a opcao S de novo.'
     if ($r.Code -eq 0) { Write-Host '[OK] Syncthing desligado. Ele so volta pela opcao S (ou ao Jogar, opcao 1).' -ForegroundColor Yellow; exit 0 }
     Write-Host "[AVISO] Marca criada, mas o stop falhou: $($r.Out)" -ForegroundColor Yellow; exit 1
@@ -71,7 +80,7 @@ if ($Desligar) {
 if ($Ligar) {
     $tinha = Test-Path $flag
     Remove-Item -LiteralPath $flag -Force -ErrorAction SilentlyContinue
-    $r = Sync-Up
+    $r = Start-Sync
     if ($r.Code -eq 0) {
         if ($tinha) { Log 'Syncthing RELIGADO (marca de desligado removida).' }
         Write-Host '[OK] Syncthing no ar.' -ForegroundColor Green; exit 0
@@ -82,6 +91,21 @@ if ($Ligar) {
 
 # ---------------- checagem (tarefa agendada) ----------------
 if (Test-Path $flag) { exit 0 }                       # desligado de proposito: respeita
+
+if ($modo -eq 'servico') {
+    # So fala com o Docker se ele ja estiver aberto (quem hospeda): nunca o abre.
+    $dockerAberto = [bool](Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue)
+    if ($dockerAberto -and (Get-SyncContainerState)) {
+        $r = Invoke-SyncDocker 'rm -f syncthing' 60
+        Log "ERRO evitado: havia um container 'syncthing' junto com o servico (mesmo Device ID) - removido ($($r.Code))."
+    }
+    $antes = Get-SyncState
+    if ($antes -eq 'running') { if ($dockerAberto) { Send-ServerLogs }; exit 0 }
+    $r = Start-Sync
+    if ($r.Code -eq 0) { Log "Servico do Syncthing estava '$antes' - religado pelo guardiao."; exit 0 }
+    Log "ERRO: servico do Syncthing '$antes' e nao subiu: $($r.Out)"
+    exit 1
+}
 
 # Docker Desktop fechado? Abre (no maximo 1 tentativa a cada 20 min, para nao insistir
 # se ele estiver com defeito). O engine demora: o proximo ciclo sobe o Syncthing.
@@ -97,28 +121,14 @@ if (-not (Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue)) {
 }
 
 # Docker aberto mas engine ainda subindo (ou com defeito): nao mexe, tenta no proximo ciclo.
-if ((Docker 'info --format {{.ServerVersion}}' 20).Code -ne 0) { exit 0 }
+if ((Invoke-SyncDocker 'info --format {{.ServerVersion}}' 20).Code -ne 0) { exit 0 }
 
-$antes = Sync-State
-if ($antes -eq 'running') {
-    # Com o sync agendado o watcher fica desligado e o mapa so vai a cada 30 min. Os LOGS do
-    # servidor (data\logs) nao precisam do mundo congelado: escaneia so essa subpasta para os
-    # outros PCs verem os logs quase ao vivo (opcao 6 deles).
-    if ((Docker 'inspect -f {{.State.Status}} minecraft' 15).Out -eq 'running') {
-        try {
-            [xml]$cfg = Get-Content (Join-Path $root 'syncthing_config\config.xml')
-            $hd = @{ 'X-API-Key' = $cfg.configuration.gui.apikey }
-            $f  = Invoke-RestMethod 'http://localhost:8384/rest/config/folders/minecraft-data' -Headers $hd -TimeoutSec 10
-            if (-not $f.fsWatcherEnabled) {
-                Invoke-RestMethod 'http://localhost:8384/rest/db/scan?folder=minecraft-data&sub=logs' -Method Post -Headers $hd -TimeoutSec 60 | Out-Null
-            }
-        } catch { }
-    }
-    exit 0                                            # tudo certo: nao registra nada
-}
+$antes = Get-SyncContainerState
+if (-not $antes) { $antes = 'ausente' }
+if ($antes -eq 'running') { Send-ServerLogs; exit 0 }  # tudo certo: nao registra nada
 
-$r = Sync-Up
-if ($r.Code -eq 0 -and (Sync-State) -eq 'running') {
+$r = Start-Sync
+if ($r.Code -eq 0 -and (Get-SyncState) -eq 'running') {
     Log "Syncthing estava '$antes' - religado pelo guardiao."
     exit 0
 }
