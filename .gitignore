@@ -45,3 +45,7 @@ Desktop.ini
 /bot/node_modules/
 /bot/runtime.json
 /bot/viaproxy/
+
+# Syncthing como servico do Windows (opcao [N]): binarios baixados e backups da config
+/bin/
+/syncthing_config.bak-*/
