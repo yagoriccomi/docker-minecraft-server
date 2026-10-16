@@ -32,6 +32,7 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
   - [🛟 Sync automático, backup diário e recuperação](#-sync-automático-backup-diário-e-recuperação)
   - [🧱 Resiliência: dois stacks Docker](#-resiliência-por-que-são-dois-stacks-docker)
   - [🔒 Syncthing sempre no ar (guardião)](#-syncthing-sempre-no-ar-guardião)
+  - [🪶 Syncthing sem Docker (serviço do Windows)](#-syncthing-sem-docker-serviço-do-windows)
   - [📡 Vigia de rede e trava do host](#-vigia-de-rede-e-trava-do-host)
   - [⚙️ Configuração local (.env)](#️-configuração-local-env)
   - [🤖 Bot AFK (farms que precisam de jogador)](#-bot-afk-farms-que-precisam-de-jogador)
@@ -54,6 +55,8 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 - 🛑 **Anti split-brain** — o servidor **não sobe** se outro PC já está com ele (mesmo que esse PC
   tenha caído da rede), e um **vigia de rede** desliga o servidor do host que ficou sem internet e
   religa quando a rede volta.
+- 🪶 **Syncthing sem Docker (opcional)** — como **serviço do Windows** (opção **`N`**): quem não está
+  hospedando não precisa deixar o Docker/WSL ligado comendo RAM só para receber o mapa.
 - 🧾 **Captura de erros** — cada ação registra sucesso/falha em `logs/menu.log`.
 - 📦 **Portável** — os scripts detectam a própria pasta; funciona em **qualquer PC / qualquer letra de disco**.
 
@@ -72,6 +75,9 @@ sem abrir portas no roteador: cada um hospeda na sua vez, e o mundo "viaja" junt
 ```
 
 Regra de ouro (anti "split-brain"/corrupção): **apenas um host roda o Minecraft por vez.**
+
+> 🪶 Com a opção **`N`**, o Syncthing sai do Docker e vira um **serviço do Windows**: aí o Docker só
+> fica aberto no PC **ATIVO** — o PC em STANDBY recebe o mapa sem Docker nenhum.
 
 ---
 
@@ -149,8 +155,8 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 
 | Opção | O que faz |
 |-------|-----------|
-| **1 · Jogar** | Antes de subir, confere a rede deste PC, **se outro PC já está hospedando** (mostra quem, o IP e os jogadores) e se o mapa já chegou todo — em qualquer desses casos **não sobe**. Se a [trava do host](#-vigia-de-rede-e-trava-do-host) diz que outro PC é o host mas ele sumiu da rede, só sobe digitando `ASSUMIR`. Depois garante o Syncthing no ar, limpa conflitos, grava a trava e sobe o servidor. |
-| **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**), **envia o save final** pelo Syncthing e mostra quanto falta para cada PC conectado. |
+| **1 · Jogar** | Antes de subir, confere a rede deste PC, **se outro PC já está hospedando** (mostra quem, o IP e os jogadores) e se o mapa já chegou todo — em qualquer desses casos **não sobe**. Se a [trava do host](#-vigia-de-rede-e-trava-do-host) diz que outro PC é o host mas ele sumiu da rede, só sobe digitando `ASSUMIR`. Abre o Docker Desktop se estiver fechado, garante o Syncthing no ar, limpa conflitos, grava a trava e sobe o servidor. |
+| **2 · Parar / passar a vez** | Encerramento limpo do Minecraft (use **antes do handoff**), **envia o save final** pelo Syncthing e mostra quanto falta para cada PC conectado. Com o Syncthing como serviço (opção **`N`**), **pergunta** se pode fechar o Docker Desktop para liberar a RAM (nem pergunta se houver outros containers rodando). |
 | **3 · Status** | Contêineres dos **dois stacks**, saúde do Minecraft e **% de sincronização** de cada PC conectado (pelo nome). |
 | **4 · Diagnóstico de erros** | Daemon, estado/saúde dos contêineres, erros nos logs e no Syncthing, **se o servidor já está ativo em outro host do Tailscale** (com IP) e o estado das tarefas de sync/backup. |
 | **5 · Backup** | Backup manual em `backups/world_backup_AAAAMMDD_HHmmss.zip`, com o servidor ligado ou não (o mundo é congelado só durante a cópia). Nunca é apagado automaticamente. |
@@ -158,6 +164,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **7 · Console (RCON)** | Console para digitar comandos no servidor (`list`, `seed`, `op`, etc). |
 | **8 · Painel Syncthing** | Abre `http://localhost:8384` no navegador. |
 | **S · Syncthing: ligar/desligar** | O Syncthing é mantido **sempre no ar** por um guardião. Esta é a **única** forma de desligá-lo de propósito (pede para digitar `DESLIGAR`). Religa pela mesma opção — ou automaticamente ao **Jogar**. |
+| **N · Syncthing sem Docker** | Instala, reinstala ou remove o Syncthing como **serviço do Windows** (pede admin). Detalhes em [Syncthing sem Docker](#-syncthing-sem-docker-serviço-do-windows). |
 | **9 · Reiniciar** | Reinicia só o Minecraft. |
 | **X · Instalar dependências** | Baixa e instala **Docker, Git e Tailscale** (via `winget`) e agenda o sync e o backup diário (igual à opção `A`). |
 | **A · Agendar sync/backup/vigia** | Só agenda as tarefas: **sync a cada 30 min**, **backup diário às 22:00** (guarda 3) e o **vigia de rede** (a cada 1 min). Não reinstala nada. |
@@ -170,7 +177,7 @@ Alguém já tem o mundo e você vai se conectar. **Roteiro no menu: opção `P` 
 | **U · Atualizar projeto** | `git pull` — baixa a versão mais recente do projeto no GitHub. Vindo da v1.0.0, o menu **migra os containers sozinho** na próxima abertura (veja *Atualizando da v1.0.0*). |
 | **P · Primeiros passos** | **Assistente guiado**: instalar do zero (1º PC) ou conectar um PC adicional, ver seu Device ID e parear com um amigo. |
 | **! · Importar mundo** | ⚠️ Importa um mundo externo (**substitui** o atual, com backup) e migra os UUIDs dos jogadores. |
-| **K · Remover container** | ⚠️ `down` do stack do jogo. **O Syncthing não é afetado** — é um stack separado. |
+| **K · Remover container** | ⚠️ `down` do stack do jogo. **O Syncthing não é afetado** — roda separado (serviço do Windows ou stack próprio). |
 | **0 · Sair** | Fecha o painel. |
 
 > 🎨 O painel mostra um **cabeçalho ao vivo** — **quem está hospedando** na rede Tailscale (com IP e
@@ -260,7 +267,7 @@ O projeto roda **dois projetos Docker independentes**:
 | Stack | Arquivo (projeto) | Papel | Quando desligar |
 |-------|-------------------|-------|-----------------|
 | **Jogo** | `compose.yaml` (`minecraft-p2p`) | Servidor Minecraft | Sempre que não estiver jogando |
-| **Replicação** | `compose.sync.yaml` (`minecraft-p2p-sync`) | Syncthing | **Nunca** |
+| **Replicação** | `compose.sync.yaml` (`minecraft-p2p-sync`) **ou** serviço `MinecraftP2P-Syncthing` (opção **`N`**) | Syncthing | **Nunca** |
 
 **Por quê?** Antes os dois ficavam no mesmo compose, e um `docker compose down` derrubava
 **os dois** — o PC parava de receber o mapa sem ninguém perceber. Se o outro jogador jogasse e
@@ -290,12 +297,47 @@ sem abrir janela:
 | Docker Desktop **fechado** | abre o Docker Desktop (no máx. 1 tentativa a cada 20 min); o Syncthing sobe no ciclo seguinte |
 | Docker aberto mas engine com defeito | não mexe — tenta de novo no próximo ciclo |
 | **Desligado de propósito** (opção **`S`**) | **respeita** e deixa desligado |
+| *Modo serviço:* serviço parado | liga o serviço de novo (sem abrir o Docker) |
+| *Modo serviço:* apareceu um container `syncthing` | **remove** o container (mesmo Device ID = conflito) |
 
 O "de propósito" é uma marca em `logs/syncthing-desligado.flag`: qualquer outra forma de derrubar o
 Syncthing é tratada como acidente e revertida. Tudo o que o guardião faz fica em `logs/sync-guard.log`.
 
 > 💡 Deixe **desligada** a opção do Docker *"Open Docker Dashboard when Docker Desktop starts"*
 > (Settings → General): quando o guardião abrir o Docker, ele sobe só na bandeja.
+
+### 🪶 Syncthing sem Docker (serviço do Windows)
+Com o Syncthing no container, o PC que **não** está hospedando precisa deixar o Docker Desktop (e a
+VM do WSL, que segura vários GB de RAM) ligado o tempo todo só para receber o mapa. A opção **`N`**
+troca o container por um **serviço do Windows**, `MinecraftP2P-Syncthing`:
+
+- **Mesma identidade:** reaproveita `syncthing_config/` (chaves, pareamentos, banco). O **Device ID
+  não muda** — os outros PCs nem percebem. Dá para migrar um PC de cada vez.
+- **Docker sob demanda:** a opção **`1`** abre o Docker Desktop na hora de jogar; a **`2`** oferece
+  fechá-lo no fim. Para ele não abrir sozinho ao ligar o PC: Docker Desktop → Settings → General →
+  desmarque *"Start Docker Desktop when you sign in"*.
+- **Sobe sozinho** com o Windows (antes do login), religa se cair (wrapper
+  [shawl](https://github.com/mtkennerly/shawl) + recuperação do serviço) e o guardião cuida do resto.
+- **Menor privilégio:** roda com a conta virtual `NT SERVICE\MinecraftP2P-Syncthing` (sem senha, sem
+  admin), com permissão só em `data/`, `syncthing_config/`, `bin/` e `logs/syncthing/`. O painel passa
+  a ouvir só em `127.0.0.1:8384`, e o firewall libera as portas 22000/21027 só para o Tailscale
+  (`100.64.0.0/10`) e a rede local. Usuários comuns podem ligar/desligar o serviço (menu, guardião
+  e SSH funcionam sem admin).
+- **Binários verificados:** Syncthing **v2.1.1** e shawl **v1.9.0** são baixados para `bin/` com
+  SHA256 conferido (versões fixas no topo de `scripts/install-sync-service.ps1`; sem auto-update).
+
+**Como a migração acontece:** baixa e confere os binários → se o Minecraft roda neste PC, **congela
+o mundo** → remove o container `syncthing` → backup em `syncthing_config.bak-<data>/` → ajusta o
+`config.xml` (pasta `/data` → caminho do Windows) → cria o serviço → confere saúde, **Device ID** e
+um scan completo da pasta (a 1ª vez relê ~2 GB). **Qualquer falha volta sozinha ao container.**
+Registro em `logs/sync-service.log`; o log do Syncthing fica em `logs/syncthing/`.
+
+**Para voltar ao Docker:** opção **`N`** → **`D`** (ou `scripts\install-sync-service.ps1
+-Desinstalar`): remove o serviço e o firewall, devolve o `config.xml` ao formato do container e
+sobe o `compose.sync.yaml` de novo.
+
+> ⚠️ Nunca rode o serviço e o container ao mesmo tempo: os dois têm o **mesmo Device ID**. O
+> instalador remove o container, e o guardião remove qualquer container `syncthing` que reapareça.
 
 ### 📡 Vigia de rede e trava do host
 Procurar o servidor na porta 25565 só enxerga quem está **online**. Se o host cai da rede com o
@@ -472,6 +514,10 @@ Server-Minecraft/
 │   ├── backup-world.ps1 # Backup .zip do mapa (diário guarda 3; manual pela opção 5)
 │   ├── common.ps1       # Funções comuns: congelar o mundo, trava sync/backup, API do Syncthing
 │   ├── ensure-sync.ps1  # Guardião: mantém o Syncthing sempre no ar (tarefa de 5 min + opção S)
+│   ├── lib-sync.ps1     # Estado do Syncthing nos dois modos (serviço do Windows ou container)
+│   ├── install-sync-service.ps1 # Syncthing como serviço do Windows: instala/migra/desinstala (opção N)
+│   ├── ensure-docker.ps1# Abre o Docker Desktop e espera o engine (opção 1)
+│   ├── free-docker.ps1  # Oferece fechar o Docker após parar o servidor (opção 2, modo serviço)
 │   ├── run-hidden.vbs   # Lançador silencioso das tarefas agendadas (sem janela de console)
 │   ├── import-world.ps1 # Importa um mundo externo (opção !)
 │   └── migrate-uuids.ps1# Migra jogadores de UUID online→offline (usado pelo import)
@@ -479,6 +525,8 @@ Server-Minecraft/
 │  --- gerados localmente, NÃO versionados (.gitignore) ---
 ├── data/                # Mundo + config do servidor + trava host-ativo.json (o mapa NÃO vai pro GitHub)
 ├── syncthing_config/    # Chaves/config do Syncthing (privado, por máquina)
+├── syncthing_config.bak-*/ # Backup da config feito pela opção N antes de migrar
+├── bin/                 # syncthing.exe + shawl.exe do modo serviço (opção N)
 ├── backups/             # Backups .zip do mapa
 └── logs/                # Logs do menu.bat, do sync e do backup
 ```
