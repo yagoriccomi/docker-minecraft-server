@@ -23,8 +23,10 @@ function Info($name) {
 
 $acao = $false
 
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')
 $s = Info 'syncthing'
-if ($s -and $s.Projeto -ne 'minecraft-p2p-sync') {
+# Com o Syncthing como servico (opcao N) nenhum container syncthing pode subir: mesmo Device ID.
+if ($s -and $s.Projeto -ne 'minecraft-p2p-sync' -and (Get-SyncMode) -eq 'docker') {
     Write-Host '  Migrando o Syncthing para o stack separado (nova versao)...' -ForegroundColor Yellow
     docker stop syncthing 2>&1 | Out-Null
     docker rm syncthing 2>&1 | Out-Null

@@ -55,7 +55,7 @@ function Wait-Peers([int]$TimeoutMin) {
     }
 }
 
-if ((Get-ContainerState 'syncthing') -ne 'running') {
+if ((Get-SyncState) -ne 'running') {
     Write-Log 'sync | Syncthing parado (ou Docker fechado) - nada a sincronizar agora.'
     exit 0
 }

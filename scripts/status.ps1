@@ -9,8 +9,15 @@ $cfgPath     = Join-Path $root 'syncthing_config\config.xml'
 Write-Host '=== CONTEINERES ===' -ForegroundColor Cyan
 Write-Host '-- Stack do jogo (compose.yaml) --' -ForegroundColor DarkGray
 docker compose -f $compose ps
-Write-Host '-- Stack de replicacao (compose.sync.yaml) - deve estar SEMPRE no ar --' -ForegroundColor DarkGray
-docker compose -f $composeSync ps
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')
+$svc = Get-SyncService
+if ($svc) {
+    Write-Host '-- Replicacao: servico do Windows (sem Docker) - deve estar SEMPRE no ar --' -ForegroundColor DarkGray
+    Write-Host ("{0}: {1} (inicio: {2})" -f $svc.Name, $svc.Status, $svc.StartType)
+} else {
+    Write-Host '-- Stack de replicacao (compose.sync.yaml) - deve estar SEMPRE no ar --' -ForegroundColor DarkGray
+    docker compose -f $composeSync ps
+}
 
 Write-Host ''
 Write-Host '=== SAUDE DO MINECRAFT ===' -ForegroundColor Cyan
@@ -38,7 +45,7 @@ if (Test-Path $cfgPath) {
             Write-Host ("  - {0} ({1}...): {2}% em dia com este PC" -f $nome, $d.Name.Substring(0,7), [math]::Floor($comp.completion))
         }
     } catch {
-        Write-Host 'Syncthing nao respondeu (container parado?).'
+        Write-Host 'Syncthing nao respondeu (parado? veja a opcao S).'
     }
 } else {
     Write-Host 'config.xml do Syncthing nao encontrado (Syncthing ainda nao rodou aqui).'

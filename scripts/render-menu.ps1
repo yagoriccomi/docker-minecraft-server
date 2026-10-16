@@ -6,6 +6,7 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'lib-lease.ps1')   # inclui o lib-hosts.ps1
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')
 
 # --- caracteres de caixa por codigo (evita problema de encoding no .ps1) ---
 # NOTA: prefixo "b" de proposito - $H colidiria com o $h de outras variaveis.
@@ -40,6 +41,9 @@ foreach ($r in @($rows)) {
     if ($p[0] -eq 'minecraft') { $local = $p[1] }
     if ($p[0] -eq 'syncthing') { if ($p[1] -eq 'running') { $sync = 'no ar' } else { $sync = 'PARADO!' } }
 }
+# Syncthing como servico do Windows: ele manda, nao importa o que o Docker diz.
+$svc = Get-SyncService
+if ($svc) { if ($svc.Status -eq 'Running') { $sync = 'no ar' } else { $sync = 'PARADO!' } }
 # Desligado DE PROPOSITO (opcao S) nao e defeito: mostra em amarelo, nao em vermelho.
 if ($sync -ne 'no ar' -and (Test-Path (Join-Path $root 'logs\syncthing-desligado.flag'))) { $sync = 'desligado' }
 
@@ -101,7 +105,8 @@ $lease   = Get-HostLease
 $pausado = $false    # parado pelo vigia de rede, esperando a rede voltar
 try { $pausado = [bool](Get-Content (Join-Path $root 'logs\net-guard.json') -Raw | ConvertFrom-Json).parado } catch { }
 $line1 = @( (S '  Servidor: ' 'Gray') )
-if (-not $docker) {
+# Com o Syncthing como servico, Docker fechado e o normal de quem nao hospeda (a opcao 1 abre).
+if (-not $docker -and -not $svc) {
     $line1 += S 'Docker nao esta rodando (abra o Docker Desktop)' 'Red'
 } elseif ($local -eq 'running' -and $remoteHosts.Count -gt 0) {
     $line1 += S "CONFLITO! rodando AQUI e em $($remoteHosts[0].Nome)" 'Red'
@@ -199,6 +204,7 @@ Row '[M]' 'Memoria do servidor (RAM)'   'Cyan'  ''    ''                        
 Row '[R]' 'Distancias (visao/simulacao)' 'Cyan' ''    ''                           ''
 Row '[F]' 'Areas forcadas: ligar/desligar' 'Cyan' ''  ''                           ''
 Row '[B]' 'Bot AFK (farms sem jogador)' 'Cyan'  ''    ''                           ''
+Row '[N]' 'Syncthing sem Docker (servico)' 'Cyan' ''  ''                           ''
 NL
 P '  ' ; P '[P]' 'Yellow' ; P ' PRIMEIROS PASSOS' 'White' ; P '  (instalar do zero / conectar outro PC)' 'DarkGray'; NL
 P '  ' ; P '[0]' 'DarkGray'; P ' Sair' 'DarkGray'; NL
