@@ -14,6 +14,7 @@ $mcName   = 'minecraft'
 $folderId = 'minecraft-data'
 $script:savesOff  = $false
 $script:worldLock = $null
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')   # Syncthing como servico do Windows ou container
 
 # Escreve na tela e no log definido em $script:LogFile (falha no log nunca derruba o script).
 function Write-Log([string]$Message, [string]$Color = 'Gray') {
