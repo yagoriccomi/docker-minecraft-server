@@ -38,6 +38,7 @@ if "%opcao%"=="7" goto console
 if "%opcao%"=="8" goto syncthing
 if "%opcao%"=="9" goto reiniciar
 if /i "%opcao%"=="S" goto sync_toggle
+if /i "%opcao%"=="N" goto sync_servico
 if /i "%opcao%"=="X" goto instalar
 if /i "%opcao%"=="A" goto agendar
 if /i "%opcao%"=="U" goto atualizar
@@ -60,8 +61,9 @@ goto menu
 cls
 echo === INICIANDO SERVIDOR ===
 echo.
-call :check_docker
-if errorlevel 1 ( pause & goto menu )
+:: Abre o Docker Desktop se estiver fechado (normal com o Syncthing como servico, opcao N).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure-docker.ps1" <nul
+if errorlevel 1 ( call :log "ERRO: Docker daemon indisponivel" & echo. & pause & goto menu )
 docker inspect -f "{{.State.Status}}" minecraft 2>nul | findstr /x "running" >nul
 if not errorlevel 1 (
     echo O servidor ja esta rodando NESTE PC.
@@ -158,6 +160,8 @@ echo.
 echo ATENCAO: o Syncthing continua ATIVO. Se algum PC apareceu acima como
 echo offline ou com tempo esgotado, ele so recebe o save quando conectar:
 echo deixe este computador ligado ate la (a opcao 3 mostra quanto cada PC ja tem).
+:: Com o Syncthing como servico, oferece fechar o Docker e devolver a RAM (pergunta antes).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\free-docker.ps1"
 echo.
 pause
 goto menu
@@ -273,6 +277,15 @@ echo O Syncthing esta DESLIGADO de proposito. Religando...
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure-sync.ps1" -Ligar <nul
 call :log "Syncthing religado (opcao S)"
+echo.
+pause
+goto menu
+
+:sync_servico
+cls
+:: Instala (ou remove) o Syncthing como servico do Windows. O script pede admin sozinho.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\install-sync-service.ps1" -Menu
+call :log "Tela do Syncthing como servico aberta (opcao N)"
 echo.
 pause
 goto menu
@@ -408,8 +421,8 @@ goto menu
 cls
 echo === REMOVENDO O CONTAINER DO MINECRAFT ===
 echo.
-echo O Syncthing NAO sera afetado: ele roda num stack separado
-echo (compose.sync.yaml) e continua replicando o mapa.
+echo O Syncthing NAO sera afetado: ele roda separado do jogo
+echo (servico do Windows ou compose.sync.yaml) e continua replicando o mapa.
 echo.
 call :has_local_mc
 if errorlevel 1 ( echo Nenhum container do Minecraft neste PC. & echo. & pause & goto menu )
@@ -434,16 +447,6 @@ goto menu
 :: 0 = existe um container 'minecraft' neste PC (estrutura nova OU antiga)
 docker inspect minecraft >nul 2>&1
 exit /b %errorlevel%
-
-:check_docker
-docker info >nul 2>&1
-if errorlevel 1 (
-    echo [ERRO] Docker nao encontrado ou nao esta em execucao.
-    echo Abra o Docker Desktop e aguarde ficar "running", depois tente de novo.
-    call :log "ERRO: Docker daemon indisponivel"
-    exit /b 1
-)
-exit /b 0
 
 :log
 echo [%DATE% %TIME%] %~1>> "%LOGFILE%"
