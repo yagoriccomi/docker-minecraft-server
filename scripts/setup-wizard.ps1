@@ -35,10 +35,15 @@ function Get-TsExe {
     return $p
 }
 function Test-DockerUp { $null = docker info --format '{{.ServerVersion}}' 2>$null; return ($LASTEXITCODE -eq 0) }
-function Test-SyncUp   { return ((docker inspect -f '{{.State.Status}}' syncthing 2>$null) -eq 'running') }
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')
+function Test-SyncUp   { return ((Get-SyncState) -eq 'running') }
 
 function Checklist-Comuns {
-    if (Test-DockerUp) { OK 'Docker instalado e rodando' } else { FALTA 'Docker - use a opcao [X] do menu e abra o Docker Desktop' }
+    if (Test-DockerUp) { OK 'Docker instalado e rodando' }
+    elseif ((Get-SyncMode) -eq 'servico') { OK 'Docker fechado (normal: o Syncthing roda como servico e a opcao [1] abre o Docker)' }
+    else { FALTA 'Docker - use a opcao [X] do menu e abra o Docker Desktop' }
+    if ((Get-SyncMode) -eq 'servico') { OK 'Syncthing instalado como servico do Windows (sem Docker)' }
+    else { TODO 'Opcional: Syncthing como servico (opcao [N] do menu) - libera a RAM do Docker quando nao hospeda' }
     if (Get-Command git -ErrorAction SilentlyContinue) { OK 'Git instalado' } else { FALTA 'Git - use a opcao [X] do menu' }
     $ts = Get-TsExe
     if ($ts) {

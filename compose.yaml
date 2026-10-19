@@ -7,6 +7,8 @@
 # Regras do projeto:
 #   - Memoria da JVM: MC_MEMORY no .env (padrao 4G se ausente). Cada PC tem o seu; o .env
 #     NAO vai pro git. Recomendado = 25% da RAM do PC, entre 2G e 32G. Troque pela opcao [M].
+#   - Distancias de visao e simulacao: MC_VIEW_DISTANCE / MC_SIMULATION_DISTANCE no .env
+#     (padrao 10). Cada PC escolhe o que aguenta quando hospeda. Troque pela opcao [R].
 #   - Modo offline: ONLINE_MODE: "FALSE" (login via MultiMC)
 #   - VERSION fixada numa release OFICIAL, casando com o cliente (NÃO usar LATEST:
 #     subiria de versao sozinho e converteria o mapa sem ninguem pedir). Para trocar,
@@ -30,6 +32,8 @@ services:
       EULA: "TRUE"             # Necessário para iniciar o servidor
       TYPE: "VANILLA"
       VERSION: "26.3"          # Release oficial — troque pela opcao [V] do menu
+      VIEW_DISTANCE: "${MC_VIEW_DISTANCE:-10}"            # Chunks enviados ao jogador: .env, opcao [R] do menu
+      SIMULATION_DISTANCE: "${MC_SIMULATION_DISTANCE:-10}" # Chunks que rodam em volta de cada jogador: .env, opcao [R]
       MEMORY: "${MC_MEMORY:-4G}"  # RAM da JVM: vem do .env (local, nao versionado). Troque pela opcao [M] do menu.bat
       ONLINE_MODE: "FALSE"     # Acesso offline via MultiMC
       PLAYER_IDLE_TIMEOUT: "0" # 0 = NUNCA expulsa por inatividade (farms de AFK)

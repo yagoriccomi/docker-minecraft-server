@@ -26,14 +26,19 @@ Write-Host '============================================' -ForegroundColor Cyan
 
 # -------- 1) Docker daemon --------
 Write-Host "`n[1] Docker Engine"
+. (Join-Path $PSScriptRoot 'lib-sync.ps1')
+$svc = Get-SyncService
 $null = docker info --format '{{.ServerVersion}}' 2>$null
-if ($LASTEXITCODE -ne 0) {
+$dockerOk = ($LASTEXITCODE -eq 0)
+if (-not $dockerOk -and $svc) {
+    # Syncthing como servico: Docker fechado e o normal de quem nao hospeda (a opcao 1 abre).
+    Okk 'Docker fechado - normal com o Syncthing como servico (a opcao 1 abre o Docker para jogar)'
+} elseif (-not $dockerOk) {
     Falha 'Docker nao encontrado ou daemon parado. Abra o Docker Desktop e aguarde "running".'
     Write-Host "`n============================================" -ForegroundColor Cyan
     Write-Host "RESUMO: $script:problemas problema(s). Sem Docker nao da para checar o resto." -ForegroundColor Red
     return
-}
-Okk 'daemon respondendo'
+} else { Okk 'daemon respondendo' }
 
 # -------- Pre-varredura Tailscale (usada em [2] e [6]) --------
 # Descobre se o Minecraft (porta 25565) esta ativo em algum host da rede Tailscale.
@@ -62,7 +67,18 @@ if ($tsExe) {
 
 # -------- 2) Estado dos containers --------
 Write-Host "`n[2] Containers"
-foreach ($name in @('minecraft', 'syncthing')) {
+$containers = @('minecraft', 'syncthing')
+if ($svc) {
+    $containers = @('minecraft')
+    if ($svc.Status -eq 'Running') { Okk "syncthing : servico $($svc.Name) rodando (sem Docker)" }
+    elseif (Test-Path (Join-Path $root 'logs\syncthing-desligado.flag')) { Aviso 'syncthing : servico parado DE PROPOSITO (opcao S)' }
+    else { Falha "syncthing : servico $($svc.Name) PARADO ($($svc.Status)) - a opcao S religa" }
+    if ($dockerOk -and (docker inspect syncthing 2>$null)) {
+        Falha 'syncthing : existe um container ALEM do servico (mesmo Device ID!) - o guardiao o remove em ate 5 min'
+    }
+}
+if (-not $dockerOk) { $containers = @() }
+foreach ($name in $containers) {
     $json = docker inspect $name 2>$null | ConvertFrom-Json
     if (-not $json) { Alerta "$name : nao existe (nunca criado? rode a opcao [1])"; continue }
     $st = $json[0].State
@@ -97,14 +113,23 @@ foreach ($name in @('minecraft', 'syncthing')) {
 
 # -------- 3) Erros recentes nos logs dos containers --------
 Write-Host "`n[3] Erros recentes nos logs (ultimas 200 linhas)"
-foreach ($name in @('minecraft', 'syncthing')) {
-    $exists = docker inspect $name 2>$null
-    if (-not $exists) { continue }
+$fontes = @($containers)
+if ($svc) { $fontes += 'syncthing (servico)' }
+foreach ($name in $fontes) {
+    if ($name -eq 'syncthing (servico)') {
+        # Como servico o Syncthing grava o proprio log (instalado pela opcao N).
+        $arq = Join-Path $root 'logs\syncthing\syncthing.log'
+        if (-not (Test-Path $arq)) { continue }
+        $log = Get-Content $arq -Tail 200
+    } else {
+        $exists = docker inspect $name 2>$null
+        if (-not $exists) { continue }
+        $log = docker logs $name --tail 200 2>&1
+    }
     # Ignora linhas INFO (Minecraft "/INFO]" e Syncthing " INF ") e casa apenas erros reais.
-    $log = docker logs $name --tail 200 2>&1
     $errLines = @($log | Where-Object {
         ($_ -notmatch '(?i)(/INFO\]|\sINF\s)') -and
-        ($_ -match '(?i)(\bERROR\b|\bSEVERE\b|\bFATAL\b|Exception|OutOfMemoryError|panic:|Caused by:)')
+        ($_ -match '(?i)(\bERROR\b|\sERR\s|\bSEVERE\b|\bFATAL\b|Exception|OutOfMemoryError|panic:|Caused by:)')
     })
     if ($errLines.Count -gt 0) {
         Alerta "$name : $($errLines.Count) linha(s) de erro nos logs recentes. Amostra:"
@@ -136,7 +161,7 @@ if (Test-Path $cfgPath) {
         if ($nConn -eq 0) { Alerta 'nenhum dispositivo conectado (amigo offline ou fora do Tailscale)' }
         else { Okk "$nConn dispositivo(s) conectado(s)" }
     } catch {
-        Alerta 'Syncthing nao respondeu na API (container parado?)'
+        Alerta 'Syncthing nao respondeu na API (parado? a opcao S religa)'
     }
 } else {
     Alerta 'config.xml do Syncthing nao encontrado (ainda nao rodou aqui)'
